@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -96,9 +95,150 @@
 <audio id="typeSound" src="type.mp3" preload="auto"></audio>
 
 <script>
-// JavaScript code omitted here due to length — added in final HTML
+let currentUser = "";
+const users = {
+  izzy: { password: "redgreyyellowbluegreen", message: "Welcome back, izzy the Artist!", level: "level_1" },
+  john: { password: "spicybee", message: "hello john its time for lore", level: "level_2" },
+  niama: { password: "Zaffre", message: "hello niama", level: "level_1" },
+  terrell: { password: "Theeggscrambler", message: "stop being diddy", level: "corrupted" },
+  admin: { password: "ControlAccess", message: "Administrator access confirmed. All active agents listed below:", level: "admin" }
+};
+
+const roleMessages = {
+  level_1: "\\n\\n[Notice] Archive terminal unlocked.\\nLevel 1 clearance granted.",
+  level_2: "\\n\\n[Directive] Project Echo files unlocked.\\nLevel 2 access confirmed.",
+  corrupted: "\\n\\n[ERROR] SYSTEM ANOMALY DETECTED.\\nDATA CORRUPTION IN PROGRESS.",
+  admin: "\\n\\n[Admin View Enabled]\\n> izzy\\n> john\\n> niama\\n> terrell\\n> [admin: you]"
+};
+
+const puzzleGrids = {
+  izzy: { cells: { "A1": "🟥", "B2": "🟩", "C4": "🟨", "D3": "🟥" }, hint: "Each color represents a letter." },
+  john: { cells: { "A2": "🟩", "B5": "🟥", "D1": "🟨", "F4": "🟩" }, hint: "Read top to bottom, left to right." },
+  niama: { cells: { "A4": "🟥", "B3": "🟨", "D5": "🟨", "E6": "🟥" }, hint: "🟥 = T, 🟩 = E, 🟨 = S" },
+  terrell: { cells: { "A3": "💢", "B4": "🟥", "C1": "🧠", "F1": "🟩", "D2": "❓" }, hint: "[ERROR] Grid node unstable. Echo bleed detected. 💀" }
+};
+
+const correctAnswer = "THE SYSTEM SEES YOU";
+const correctSecret = "ECHO-DELTA-9263B";
+
+function typeMessage(fullText, elementId, delay = 50, onComplete = null) {
+  const element = document.getElementById(elementId);
+  const sound = document.getElementById("typeSound");
+  element.textContent = "";
+  let index = 0;
+  const typing = setInterval(() => {
+    if (index < fullText.length) {
+      element.textContent += fullText.charAt(index);
+      if (fullText.charAt(index) !== " " && fullText.charAt(index) !== "\\n") {
+        const clone = sound.cloneNode();
+        clone.play();
+      }
+      index++;
+    } else {
+      clearInterval(typing);
+      if (onComplete) onComplete();
+    }
+  }, delay);
+}
+
+function checkAccess() {
+  const name = document.getElementById("nameInput").value.toLowerCase();
+  const password = document.getElementById("passwordInput").value;
+  if (users[name] && users[name].password === password) {
+    currentUser = name;
+    const user = users[name];
+    const fullMessage = user.message + (roleMessages[user.level] || "");
+    document.getElementById("loginForm").style.display = "none";
+    document.getElementById("protectedContent").style.display = "block";
+    document.body.style.backgroundColor = user.level === "corrupted" ? "#200" : "#000";
+    document.body.style.color = user.level === "corrupted" ? "#f00" : "#0f0";
+    document.getElementById("accessGranted").textContent = user.level === "corrupted" ? "ACCESS BREACHED" : "ACCESS GRANTED";
+
+    setTimeout(() => {
+      typeMessage(fullMessage, "welcomeMessage", 50, () => {
+        if (user.level === "level_2") {
+          document.getElementById("level2Prompt").style.display = "block";
+          typeMessage("Input file token to proceed.", "filePromptText", 50, () => {
+            document.getElementById("fileStage").style.display = "block";
+          });
+        } else if (user.level === "admin") {
+          document.getElementById("stageThree").style.display = "block";
+          showSharedGrid(currentUser);
+        } else {
+          document.getElementById("fileStage").style.display = "block";
+        }
+      });
+    }, 1500);
+  } else {
+    alert("Access Denied.");
+  }
+}
+
+function checkFile() {
+  const file = document.getElementById("fileInput").files[0];
+  if (!file) return alert("No file selected!");
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const contents = e.target.result;
+    if (contents.includes(correctSecret)) {
+      document.getElementById("stageThree").style.display = "block";
+      showSharedGrid(currentUser);
+    } else {
+      const fileStage = document.getElementById("fileStage");
+      const shutdownMessage = document.createElement("div");
+      shutdownMessage.id = "shutdownText";
+      shutdownMessage.style.color = "red";
+      fileStage.appendChild(shutdownMessage);
+      typeMessage("Commencing shutdown procedure...", "shutdownText", 50, () => {
+        setTimeout(() => { window.close(); }, 1500);
+      });
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showSharedGrid(name) {
+  const grid = puzzleGrids[name];
+  if (!grid) return;
+  const gridData = Array.from({ length: 6 }, () => Array(6).fill("⬛"));
+  for (const key in grid.cells) {
+    const row = key.charCodeAt(0) - 65;
+    const col = parseInt(key[1]) - 1;
+    gridData[row][col] = grid.cells[key];
+  }
+  let gridText = "";
+  for (let r = 0; r < 6; r++) {
+    for (let c = 0; c < 6; c++) gridText += gridData[r][c] + " ";
+    gridText += "\\n";
+  }
+  document.getElementById("gridDisplay").textContent = gridText;
+  document.getElementById("puzzleHint").textContent = `Hint: ${grid.hint}`;
+  document.getElementById("sharedGridContainer").style.display = "block";
+}
+
+function submitPuzzleAnswer() {
+  const answer = document.getElementById("puzzleAnswer").value.trim().toUpperCase();
+  const feedback = document.getElementById("puzzleFeedback");
+  feedback.style.color = answer === correctAnswer ? "#0f0" : "#f00";
+  feedback.textContent = answer === correctAnswer ? "ACCESS GRANTED. Stage 4 Unlocked." : "Incorrect. Try again.";
+}
+
+function logout() {
+  document.getElementById("nameInput").value = "";
+  document.getElementById("passwordInput").value = "";
+  document.getElementById("welcomeMessage").textContent = "";
+  document.getElementById("filePromptText").textContent = "";
+  document.getElementById("shutdownText")?.remove();
+  document.getElementById("protectedContent").style.display = "none";
+  document.getElementById("loginForm").style.display = "block";
+  document.getElementById("fileStage").style.display = "none";
+  document.getElementById("stageThree").style.display = "none";
+  document.getElementById("level2Prompt").style.display = "none";
+  document.getElementById("sharedGridContainer").style.display = "none";
+  document.body.style.backgroundColor = "#000";
+  document.body.style.color = "#0f0";
+}
 </script>
 
 </body>
 </html>
-
