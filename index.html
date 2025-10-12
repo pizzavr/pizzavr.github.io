@@ -22,6 +22,8 @@
   Gravity Strength: <input type="range" id="gravitySlider" min="0" max="2" step="0.01" value="0.5" style="vertical-align:middle; width:100px;">
   <span id="gravityValue">0.50</span>
   <button id="resistanceBtn">Resistance: On</button>
+  <button id="massLabelBtn">Show Mass: On</button>
+  <button id="pauseBtn">Pause: Off</button>
 </div>
 <canvas id="canvas"></canvas>
 <script>
@@ -49,6 +51,8 @@ let connectMode = false;
 let selectedSpring = null;
 let springEditor = null;
 let deleteMode = false;
+let showMassLabel = true;
+let paused = false;
 
 class Circle {
   constructor(x, y) {
@@ -56,9 +60,14 @@ class Circle {
     this.y = y;
     this.vx = 0;
     this.vy = 0;
-    this.radius = RADIUS;
     this.mass = 1;
     this.isDragged = false;
+    this.selectedForEdit = false;
+    this.locked = false;
+  }
+  get radius() {
+    // Base radius plus scaling with mass
+    return RADIUS + (this.mass - 1) * 8;
   }
   draw() {
     ctx.beginPath();
@@ -68,20 +77,26 @@ class Circle {
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 2;
     ctx.stroke();
+    // Show mass value above ball if enabled
+    if (showMassLabel) {
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText('m=' + this.mass.toFixed(2), this.x, this.y - this.radius - 10);
+    }
   }
   update() {
+    if (this.locked) {
+      this.vx = 0;
+      this.vy = 0;
+      return;
+    }
     if (!this.isDragged) {
-  if (gravityOn) this.vy += GRAVITY; // F = m*a, m=1
+      if (gravityOn) this.vy += GRAVITY * (1/this.mass); // a = F/m, F=GRAVITY*m, so a=GRAVITY
       if (resistanceOn) {
         this.vx *= FRICTION;
         this.vy *= FRICTION;
       }
-// Resistance toggle button logic
-document.getElementById('resistanceBtn').onclick = function() {
-  resistanceOn = !resistanceOn;
-  this.textContent = 'Resistance: ' + (resistanceOn ? 'On' : 'Off');
-  this.style.background = resistanceOn ? '' : '#888';
-};
       this.x += this.vx;
       this.y += this.vy;
       // Bounce off walls
@@ -116,6 +131,7 @@ class Spring {
     let force = (dist - this.length) * this.strength;
     let fx = (dx / dist) * force;
     let fy = (dy / dist) * force;
+    // Newton's 2nd and 3rd law: F = m*a, equal and opposite
     this.a.vx += fx / this.a.mass;
     this.a.vy += fy / this.a.mass;
     this.b.vx -= fx / this.b.mass;
@@ -190,9 +206,10 @@ document.getElementById('velocityBtn').onclick = function() {
 }
 
 function update() {
+  if (paused) return;
   for (let spring of springs) spring.update();
   for (let circle of circles) circle.update();
-  // Simple collision
+  // Simple collision with mass
   for (let i = 0; i < circles.length; i++) {
     for (let j = i+1; j < circles.length; j++) {
       let a = circles[i], b = circles[j];
@@ -205,12 +222,22 @@ function update() {
         let targetY = a.y + Math.sin(angle) * minDist;
         let ax = (targetX - b.x) * 0.5;
         let ay = (targetY - b.y) * 0.5;
-        a.vx -= ax; a.vy -= ay;
-        b.vx += ax; b.vy += ay;
+        // Conservation of momentum
+        let totalMass = a.mass + b.mass;
+        a.vx -= ax * (b.mass/totalMass);
+        a.vy -= ay * (b.mass/totalMass);
+        b.vx += ax * (a.mass/totalMass);
+        b.vy += ay * (a.mass/totalMass);
       }
     }
   }
 }
+// Pause/Lock button logic
+document.getElementById('pauseBtn').onclick = function() {
+  paused = !paused;
+  this.textContent = 'Pause: ' + (paused ? 'On' : 'Off');
+  this.style.background = paused ? '#c00' : '';
+};
 
 function loop() {
   update();
@@ -264,6 +291,11 @@ canvas.addEventListener('mousedown', e => {
       // If in connect mode, do not start drag
       return;
     }
+    // If not in connect mode, check for mass edit (right-click)
+    if (e.button === 2) {
+      showBallEditor(found);
+      return;
+    }
     // Always allow drag if not in connect mode
     draggingBall = found;
     dragOffset.x = x - found.x;
@@ -276,6 +308,54 @@ canvas.addEventListener('mousedown', e => {
     selectedBall = null;
     connectMode = false;
   }
+});
+// Ball property editor (mass)
+function showBallEditor(ball) {
+  if (window.ballEditor) window.ballEditor.remove();
+  let editor = document.createElement('div');
+  window.ballEditor = editor;
+  editor.style.position = 'absolute';
+  editor.style.background = '#333';
+  editor.style.color = '#fff';
+  editor.style.padding = '12px';
+  editor.style.borderRadius = '8px';
+  editor.style.zIndex = 10;
+  editor.innerHTML = `<b>Edit Ball</b><br>
+    Mass: <input type='number' id='ballMass' value='${ball.mass}' step='0.1' min='0.1' max='10'><br>
+    <label><input type='checkbox' id='ballLock' ${ball.locked ? 'checked' : ''}> Lock Ball</label><br>
+    <button id='ballSave'>Save</button>
+    <button id='ballClose'>Close</button>
+  `;
+  document.body.appendChild(editor);
+  function updatePanelPosition() {
+    // Keep panel above the ball
+    editor.style.left = (ball.x - 20) + 'px';
+    editor.style.top = (ball.y - ball.radius - 60) + 'px';
+  }
+  updatePanelPosition();
+  // Move panel every frame while open
+  function followBall() {
+    if (window.ballEditor === editor) {
+      updatePanelPosition();
+      requestAnimationFrame(followBall);
+    }
+  }
+  followBall();
+  document.getElementById('ballSave').onclick = () => {
+    ball.mass = Math.max(0.1, parseFloat(document.getElementById('ballMass').value));
+    ball.locked = document.getElementById('ballLock').checked;
+    editor.remove();
+    window.ballEditor = null;
+  };
+  document.getElementById('ballClose').onclick = () => {
+    editor.remove();
+    window.ballEditor = null;
+  };
+}
+
+// Prevent context menu on canvas (for right-click mass edit)
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
 });
 canvas.addEventListener('mousemove', e => {
   if (draggingBall) {
@@ -366,6 +446,13 @@ function showSpringEditor(spring) {
     springEditor = null;
   };
 }
+
+// Mass label toggle button logic (at end of script)
+document.getElementById('massLabelBtn').onclick = function() {
+  showMassLabel = !showMassLabel;
+  this.textContent = 'Show Mass: ' + (showMassLabel ? 'On' : 'Off');
+  this.style.background = showMassLabel ? '' : '#888';
+};
 
 loop();
 </script>
