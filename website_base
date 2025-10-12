@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Physics Circles Playground</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { background: #222; display: block; }
+    #info { position: absolute; top: 10px; left: 10px; color: #fff; font-family: sans-serif; }
+  </style>
+</head>
+<body>
+<div id="info">
+  <b>Physics Circles Playground</b><br>
+  Click to add circles.<br>
+  Drag balls to move.<br>
+  Double-click a ball, then click another to connect.<br>
+  Click a spring to edit.<br>
+  <button id="deleteModeBtn">Delete Mode: Off</button>
+  <button id="gravityBtn">Gravity: On</button>
+  <button id="velocityBtn">Show Velocity: Off</button>
+  Gravity Strength: <input type="range" id="gravitySlider" min="0" max="2" step="0.01" value="0.5" style="vertical-align:middle; width:100px;">
+  <span id="gravityValue">0.50</span>
+  <button id="resistanceBtn">Resistance: On</button>
+</div>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let GRAVITY = 0.5;
+let gravityOn = true;
+let showVelocity = false;
+let FRICTION = 0.99;
+let resistanceOn = true;
+const RADIUS = 20;
+const SPRING_STRENGTH = 0.01;
+const SPRING_LENGTH = 100;
+
+let circles = [];
+let springs = [];
+let draggingBall = null;
+let dragOffset = {x:0, y:0};
+let dragHistory = [];
+let selectedBall = null;
+let connectMode = false;
+let selectedSpring = null;
+let springEditor = null;
+let deleteMode = false;
+
+class Circle {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.radius = RADIUS;
+    this.mass = 1;
+    this.isDragged = false;
+  }
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = (selectedBall === this) ? '#ff0' : '#4af';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  update() {
+    if (!this.isDragged) {
+  if (gravityOn) this.vy += GRAVITY; // F = m*a, m=1
+      if (resistanceOn) {
+        this.vx *= FRICTION;
+        this.vy *= FRICTION;
+      }
+// Resistance toggle button logic
+document.getElementById('resistanceBtn').onclick = function() {
+  resistanceOn = !resistanceOn;
+  this.textContent = 'Resistance: ' + (resistanceOn ? 'On' : 'Off');
+  this.style.background = resistanceOn ? '' : '#888';
+};
+      this.x += this.vx;
+      this.y += this.vy;
+      // Bounce off walls
+      if (this.x < this.radius) { this.x = this.radius; this.vx *= -0.7; }
+      if (this.x > canvas.width - this.radius) { this.x = canvas.width - this.radius; this.vx *= -0.7; }
+      if (this.y < this.radius) { this.y = this.radius; this.vy *= -0.7; }
+      if (this.y > canvas.height - this.radius) { this.y = canvas.height - this.radius; this.vy *= -0.7; }
+    }
+  }
+}
+
+class Spring {
+  constructor(a, b) {
+    this.a = a;
+    this.b = b;
+    this.length = SPRING_LENGTH;
+    this.strength = SPRING_STRENGTH;
+    this.selected = false;
+  }
+  draw() {
+    ctx.beginPath();
+    ctx.moveTo(this.a.x, this.a.y);
+    ctx.lineTo(this.b.x, this.b.y);
+    ctx.strokeStyle = this.selected ? '#0f0' : '#fa4';
+    ctx.lineWidth = this.selected ? 5 : 3;
+    ctx.stroke();
+  }
+  update() {
+    let dx = this.b.x - this.a.x;
+    let dy = this.b.y - this.a.y;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    let force = (dist - this.length) * this.strength;
+    let fx = (dx / dist) * force;
+    let fy = (dy / dist) * force;
+    this.a.vx += fx / this.a.mass;
+    this.a.vy += fy / this.a.mass;
+    this.b.vx -= fx / this.b.mass;
+    this.b.vy -= fy / this.b.mass;
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let spring of springs) spring.draw();
+  for (let circle of circles) circle.draw();
+  if (showVelocity) {
+    for (let circle of circles) {
+      // Draw velocity arrow
+      let vx = circle.vx, vy = circle.vy;
+      let speed = Math.sqrt(vx*vx + vy*vy);
+      if (speed > 0.5) {
+        let arrowLen = Math.min(40, speed*8);
+        let angle = Math.atan2(vy, vx);
+        let x1 = circle.x, y1 = circle.y;
+        let x2 = x1 + Math.cos(angle)*arrowLen;
+        let y2 = y1 + Math.sin(angle)*arrowLen;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = '#0ff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Arrow head
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - Math.cos(angle-Math.PI/6)*10, y2 - Math.sin(angle-Math.PI/6)*10);
+        ctx.lineTo(x2 - Math.cos(angle+Math.PI/6)*10, y2 - Math.sin(angle+Math.PI/6)*10);
+        ctx.lineTo(x2, y2);
+        ctx.fillStyle = '#0ff';
+        ctx.fill();
+      }
+      // Show velocity value
+      ctx.font = '14px sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('v=' + speed.toFixed(2), circle.x + circle.radius + 8, circle.y - 8);
+    }
+  }
+// Gravity slider logic
+const gravitySlider = document.getElementById('gravitySlider');
+const gravityValue = document.getElementById('gravityValue');
+gravitySlider.oninput = function() {
+  GRAVITY = parseFloat(this.value);
+  gravityValue.textContent = GRAVITY.toFixed(2);
+};
+// Gravity toggle button logic
+document.getElementById('gravityBtn').onclick = function() {
+  gravityOn = !gravityOn;
+  this.textContent = 'Gravity: ' + (gravityOn ? 'On' : 'Off');
+  this.style.background = gravityOn ? '' : '#888';
+};
+
+// Velocity toggle button logic
+document.getElementById('velocityBtn').onclick = function() {
+  showVelocity = !showVelocity;
+  this.textContent = 'Show Velocity: ' + (showVelocity ? 'On' : 'Off');
+  this.style.background = showVelocity ? '#0ff' : '';
+};
+  if (connectMode && selectedBall) {
+    ctx.beginPath();
+    ctx.arc(selectedBall.x, selectedBall.y, selectedBall.radius+6, 0, Math.PI*2);
+    ctx.strokeStyle = '#ff0';
+    ctx.setLineDash([5,5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function update() {
+  for (let spring of springs) spring.update();
+  for (let circle of circles) circle.update();
+  // Simple collision
+  for (let i = 0; i < circles.length; i++) {
+    for (let j = i+1; j < circles.length; j++) {
+      let a = circles[i], b = circles[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let dist = Math.sqrt(dx*dx + dy*dy);
+      let minDist = a.radius + b.radius;
+      if (dist < minDist) {
+        let angle = Math.atan2(dy, dx);
+        let targetX = a.x + Math.cos(angle) * minDist;
+        let targetY = a.y + Math.sin(angle) * minDist;
+        let ax = (targetX - b.x) * 0.5;
+        let ay = (targetY - b.y) * 0.5;
+        a.vx -= ax; a.vy -= ay;
+        b.vx += ax; b.vy += ay;
+      }
+    }
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+canvas.addEventListener('mousedown', e => {
+  dragHistory = [];
+  let x = e.clientX, y = e.clientY;
+  // Check for spring click
+  let foundSpring = springs.find(s => {
+    let ax = s.a.x, ay = s.a.y, bx = s.b.x, by = s.b.y;
+    let dx = bx - ax, dy = by - ay;
+    let t = ((x-ax)*dx + (y-ay)*dy) / (dx*dx + dy*dy);
+    t = Math.max(0, Math.min(1, t));
+    let px = ax + t*dx, py = ay + t*dy;
+    return Math.hypot(px-x, py-y) < 10;
+  });
+  if (foundSpring) {
+    if (deleteMode) {
+      // Delete spring
+      springs = springs.filter(s => s !== foundSpring);
+      return;
+    } else {
+      springs.forEach(s => s.selected = false);
+      foundSpring.selected = true;
+      selectedSpring = foundSpring;
+      showSpringEditor(foundSpring);
+      return;
+    }
+  }
+  // Check for ball click
+  let found = circles.find(c => Math.hypot(c.x-x, c.y-y) < c.radius);
+  if (found) {
+    if (deleteMode) {
+      // Delete ball and connected springs
+      springs = springs.filter(s => s.a !== found && s.b !== found);
+      circles = circles.filter(c => c !== found);
+      selectedBall = null;
+      connectMode = false;
+      return;
+    }
+    if (connectMode) {
+      if (selectedBall && found !== selectedBall) {
+        springs.push(new Spring(selectedBall, found));
+        connectMode = false;
+        selectedBall = null;
+        return;
+      }
+      // If in connect mode, do not start drag
+      return;
+    }
+    // Always allow drag if not in connect mode
+    draggingBall = found;
+    dragOffset.x = x - found.x;
+    dragOffset.y = y - found.y;
+    found.isDragged = true;
+    selectedBall = found;
+  } else {
+    // Add new ball
+    circles.push(new Circle(x, y));
+    selectedBall = null;
+    connectMode = false;
+  }
+});
+canvas.addEventListener('mousemove', e => {
+  if (draggingBall) {
+    let newX = e.clientX - dragOffset.x;
+    let newY = e.clientY - dragOffset.y;
+    dragHistory.push({x: newX, y: newY, t: performance.now()});
+    if (dragHistory.length > 10) dragHistory.shift();
+    draggingBall.x = newX;
+    draggingBall.y = newY;
+    draggingBall.vx = 0;
+    draggingBall.vy = 0;
+  }
+});
+canvas.addEventListener('mouseup', e => {
+  if (draggingBall) {
+    // Calculate velocity from drag history (flick)
+    if (dragHistory.length >= 2) {
+      let last = dragHistory[dragHistory.length-1];
+      let first = dragHistory[0];
+      let dt = (last.t - first.t) / 1000; // seconds
+      if (dt > 0) {
+        let dx = last.x - first.x;
+        let dy = last.y - first.y;
+        draggingBall.vx = dx / dt * 0.05; // scale factor for realism
+        draggingBall.vy = dy / dt * 0.05;
+      }
+    }
+    draggingBall.isDragged = false;
+    draggingBall = null;
+    dragHistory = [];
+  }
+});
+canvas.addEventListener('dblclick', e => {
+  let x = e.clientX, y = e.clientY;
+  let found = circles.find(c => Math.hypot(c.x-x, c.y-y) < c.radius);
+  if (found) {
+    // Double-click to start connect mode
+    selectedBall = found;
+    connectMode = true;
+  }
+});
+
+
+
+window.addEventListener('resize', () => {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+});
+
+// Delete Mode button logic
+document.getElementById('deleteModeBtn').onclick = function() {
+  deleteMode = !deleteMode;
+  this.textContent = 'Delete Mode: ' + (deleteMode ? 'On' : 'Off');
+  this.style.background = deleteMode ? '#c00' : '';
+};
+
+// Spring property editor
+function showSpringEditor(spring) {
+  if (springEditor) springEditor.remove();
+  springEditor = document.createElement('div');
+  springEditor.style.position = 'absolute';
+  springEditor.style.left = '50px';
+  springEditor.style.top = '50px';
+  springEditor.style.background = '#333';
+  springEditor.style.color = '#fff';
+  springEditor.style.padding = '16px';
+  springEditor.style.borderRadius = '8px';
+  springEditor.style.zIndex = 10;
+  springEditor.innerHTML = `<b>Edit Spring</b><br>
+    Length: <input type='number' id='springLength' value='${spring.length}' step='1' min='10' max='1000'><br>
+    Strength: <input type='number' id='springStrength' value='${spring.strength}' step='0.001' min='0.001' max='1'><br>
+    <button id='springSave'>Save</button>
+    <button id='springClose'>Close</button>
+  `;
+  document.body.appendChild(springEditor);
+  document.getElementById('springSave').onclick = () => {
+    spring.length = parseFloat(document.getElementById('springLength').value);
+    spring.strength = parseFloat(document.getElementById('springStrength').value);
+    spring.selected = false;
+    selectedSpring = null;
+    springEditor.remove();
+    springEditor = null;
+  };
+  document.getElementById('springClose').onclick = () => {
+    spring.selected = false;
+    selectedSpring = null;
+    springEditor.remove();
+    springEditor = null;
+  };
+}
+
+loop();
+</script>
+</body>
+</html>
