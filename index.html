@@ -141,8 +141,8 @@
             color: #4af;
         }
 
-        /* Help Modal Styles */
-        #help-modal {
+        /* Modal Styles (Help/Save/Load) */
+        .modal {
             position: fixed;
             top: 0;
             left: 0;
@@ -155,25 +155,47 @@
             z-index: 200;
             font-family: sans-serif;
         }
-        #help-content {
+        .modal-content {
             background: #222;
             color: #fff;
             padding: 30px;
             border-radius: 10px;
-            max-width: 400px;
+            max-width: 90%;
+            width: 500px;
+            max-height: 90%;
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+            overflow: auto;
         }
-        #help-content h2 {
+        .modal-content h2 {
             border-bottom: 2px solid #4af;
             padding-bottom: 10px;
             margin-top: 0;
         }
-        #help-close-btn {
+        .modal-close-btn {
             float: right;
             background: #c00;
             color: #fff;
             font-weight: bold;
             padding: 8px 12px;
+            border-radius: 4px;
+        }
+        #saveDataTextarea {
+            width: 100%;
+            min-height: 200px;
+            background: #111;
+            color: #0f0;
+            border: 1px solid #555;
+            padding: 10px;
+            box-sizing: border-box;
+            resize: vertical;
+            font-family: monospace;
+        }
+        .modal-actions {
+            margin-top: 15px;
+            text-align: right;
+        }
+        .modal-actions button {
+            margin-left: 10px;
         }
 	</style>
 </head>
@@ -193,6 +215,10 @@
 			<div class="control-item">
 				<button id="pauseBtn">Pause: Off</button>
 				<button id="helpBtn">How to Play 💡</button>
+			</div>
+			<div class="control-item">
+				<button id="saveBtn">Save/Export 💾</button>
+				<button id="loadBtn">Load/Import 📤</button>
 			</div>
 			<div class="control-item">
 				<button id="deleteModeBtn">Single-Click Delete: Off</button>
@@ -262,22 +288,22 @@
 		</div>
         
         <div id="update-board" class="control-group">
-            <h3>Update Board (v6.3)</h3>
+            <h3>Update Board (v6.4)</h3>
             
             <p>Recent Additions:</p>
             <ul>
+				<li>**v6.4:** Added **Save/Export** and **Load/Import** features using JSON.</li>
 				<li>**v6.3:** Added **Grid Snapping** and **Corner Connecting** for walls.</li>
 				<li>**v6.2:** Added a **Wall Editor** to change wall color, friction, and restitution.</li>
-				<li>**v6.1:** **FIX:** Corrected issue where dragging a ball would incorrectly create a new ball.</li>
             </ul>
         </div>
         </div>
 
 	<canvas id="canvas"></canvas>
 
-    <div id="help-modal">
-        <div id="help-content">
-            <button id="help-close-btn">Close X</button>
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close-btn" data-modal="help-modal">Close X</button>
             <h2>How to Play 💡</h2>
             
             <h3>On the Canvas (Mouse)</h3>
@@ -294,9 +320,28 @@
                 <li>**Press 'D':** Hover over a ball, spring, or wall and press **'D'** to delete it instantly.</li>
                 <li>**Single-Click Delete Mode:** Turn this on in the panel to delete elements with a single left click.</li>
             </ul>
-
-            <h3>Controls Panel</h3>
-            <p>Use the panel to customize **Global Gravity**, toggle **Resistance/Air Friction**, turn the **Boundary Walls** (edges of the screen) on or off, and pause the simulation.</p>
+        </div>
+    </div>
+    <div id="save-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close-btn" data-modal="save-modal">Close X</button>
+            <h2>Save / Export Data 💾</h2>
+            <p>Copy the JSON data below to save your current simulation state. You can paste it into the Load/Import feature later.</p>
+            <textarea id="saveDataTextarea" readonly></textarea>
+            <div class="modal-actions">
+                <button id="copySaveDataBtn">Copy Data</button>
+            </div>
+        </div>
+    </div>
+    <div id="load-modal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close-btn" data-modal="load-modal">Close X</button>
+            <h2>Load / Import Data 📤</h2>
+            <p>Paste your saved JSON data here to load the simulation.</p>
+            <textarea id="loadDataTextarea"></textarea>
+            <div class="modal-actions">
+                <button id="loadDataBtn" style="background: #4af;">Load Simulation</button>
+            </div>
         </div>
     </div>
     <script>
@@ -305,8 +350,8 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const BASE_GRAVITY_UNIT = 0.5; // Represents 100% or 1G. 
-let GRAVITY = BASE_GRAVITY_UNIT; // Current Gravity Multiplier
+const BASE_GRAVITY_UNIT = 0.5; 
+let GRAVITY = BASE_GRAVITY_UNIT; 
 let gravityOn = true;
 let showVelocity = false;
 let FRICTION = 0.99;
@@ -315,7 +360,7 @@ const RADIUS = 20;
 const SPRING_STRENGTH = 0.01; 
 const SPRING_LENGTH = 100;
 const WALL_THICKNESS = 5;
-const CORNER_SNAP_DISTANCE = 20; // Max distance for wall corner snapping
+const CORNER_SNAP_DISTANCE = 20; 
 
 // Grid control state
 let snapGrid = true;
@@ -452,6 +497,8 @@ class Circle {
 		this.ty = y;
 		this.color = '#4af'; 
 		this.label = ''; 
+        // Used for serialization: maps spring indices to the circle
+        this.springIndices = []; 
 	}
 	get radius() {
 		return RADIUS + (this.mass - 1) * 8;
@@ -555,6 +602,18 @@ class Circle {
 			this.vy *= -restitution; 
 		}
 	}
+
+    // Custom serializer to save only necessary state
+    toJSON() {
+        return {
+            x: this.x, y: this.y,
+            vx: this.vx, vy: this.vy,
+            mass: this.mass,
+            locked: this.locked,
+            color: this.color,
+            label: this.label
+        };
+    }
 }
 
 class Spring {
@@ -600,6 +659,18 @@ class Spring {
 			this.b.vy -= fy / this.b.mass;
 		}
 	}
+
+    // Custom serializer to save endpoints by their index in the global circles array
+    toJSON() {
+        const aIndex = circles.indexOf(this.a);
+        const bIndex = circles.indexOf(this.b);
+        return {
+            aIndex: aIndex,
+            bIndex: bIndex,
+            length: this.length,
+            strength: this.strength
+        };
+    }
 }
 
 class Wall {
@@ -625,11 +696,22 @@ class Wall {
 		ctx.stroke();
 		ctx.shadowBlur = 0;
 	}
+
+    // Custom serializer
+    toJSON() {
+        return {
+            x1: this.x1, y1: this.y1,
+            x2: this.x2, y2: this.y2,
+            color: this.color,
+            restitution: this.restitution,
+            friction: this.friction
+        };
+    }
 }
 
 
 // ====================================================================
-// --- Core Simulation Loop ---
+// --- Core Simulation Loop & Drawing ---
 // ====================================================================
 
 function drawGrid() {
@@ -709,8 +791,8 @@ function update() {
 	for (let spring of springs) spring.update();
 	for (let circle of circles) circle.update();
 	
-	// Circle-Circle Collision
-	for (let i = 0; i < circles.length; i++) {
+	// Circle-Circle Collision (omitted for brevity, assume it's still here)
+    for (let i = 0; i < circles.length; i++) {
 		for (let j = i+1; j < circles.length; j++) {
 			let a = circles[i], b = circles[j];
 			
@@ -769,9 +851,9 @@ function update() {
 			}
 		}
 	}
-
-	// Circle-Wall Collision
-	for (let circle of circles) {
+	
+	// Circle-Wall Collision (omitted for brevity, assume it's still here)
+    for (let circle of circles) {
 		for (let wall of walls) {
 			const { x1, y1, x2, y2 } = wall;
 			const dx = x2 - x1;
@@ -829,32 +911,170 @@ function loop() {
 
 
 // ====================================================================
+// --- Serialization / Deserialization Logic ---
+// ====================================================================
+
+function saveSimulation() {
+    const data = {
+        meta: {
+            version: '6.4',
+            timestamp: new Date().toISOString()
+        },
+        physics: {
+            gravity: GRAVITY,
+            gravityOn: gravityOn,
+            resistanceOn: resistanceOn
+        },
+        display: {
+            showVelocity: showVelocity,
+            showMassLabel: showMassLabel
+        },
+        circles: circles,
+        springs: springs,
+        walls: walls
+    };
+    
+    // JSON.stringify will automatically call the toJSON methods on the objects
+    return JSON.stringify(data, null, 2); 
+}
+
+function loadSimulation(jsonString) {
+    try {
+        const data = JSON.parse(jsonString);
+        
+        // --- 1. Reset Global State ---
+        circles = [];
+        springs = [];
+        walls = [];
+        selectedBall = null;
+        connectMode = false;
+        if (window.ballEditor) window.ballEditor.remove();
+	    if (window.springEditor) window.springEditor.remove();
+	    if (window.wallEditor) window.wallEditor.remove();
+
+        // --- 2. Load Global Physics/Display Settings ---
+        if (data.physics) {
+            GRAVITY = data.physics.gravity || BASE_GRAVITY_UNIT;
+            gravityOn = data.physics.gravityOn !== undefined ? data.physics.gravityOn : true;
+            resistanceOn = data.physics.resistanceOn !== undefined ? data.physics.resistanceOn : true;
+            updateGravity(GRAVITY); // Update controls
+            document.getElementById('gravityBtn').textContent = 'Gravity: ' + (gravityOn ? 'On' : 'Off');
+            document.getElementById('resistanceBtn').textContent = 'Resistance: ' + (resistanceOn ? 'On' : 'Off');
+            FRICTION = resistanceOn ? 0.99 : 1.0;
+        }
+        if (data.display) {
+            showVelocity = data.display.showVelocity || false;
+            showMassLabel = data.display.showMassLabel !== undefined ? data.display.showMassLabel : true;
+            document.getElementById('velocityBtn').textContent = 'Show Velocity: ' + (showVelocity ? 'On' : 'Off');
+            document.getElementById('massLabelBtn').textContent = 'Show Mass: ' + (showMassLabel ? 'On' : 'Off');
+        }
+
+        // --- 3. Load Circles ---
+        for (const cData of data.circles) {
+            const circle = new Circle(cData.x, cData.y);
+            circle.vx = cData.vx || 0;
+            circle.vy = cData.vy || 0;
+            circle.mass = cData.mass || 1;
+            circle.locked = cData.locked || false;
+            circle.color = cData.color || '#4af';
+            circle.label = cData.label || '';
+            // Reset temp properties
+            circle.tx = cData.x;
+            circle.ty = cData.y;
+
+            circles.push(circle);
+        }
+
+        // --- 4. Load Springs (Connecting to loaded circles) ---
+        for (const sData of data.springs) {
+            const a = circles[sData.aIndex];
+            const b = circles[sData.bIndex];
+            if (a && b) {
+                const spring = new Spring(a, b);
+                spring.length = sData.length || SPRING_LENGTH;
+                spring.strength = sData.strength || SPRING_STRENGTH;
+                springs.push(spring);
+            } else {
+                console.warn(`Skipping spring due to missing ball at index ${sData.aIndex} or ${sData.bIndex}`);
+            }
+        }
+        
+        // --- 5. Load Walls ---
+        for (const wData of data.walls) {
+            const wall = new Wall(wData.x1, wData.y1, wData.x2, wData.y2);
+            wall.color = wData.color || '#fff';
+            wall.restitution = wData.restitution !== undefined ? wData.restitution : 0.8;
+            wall.friction = wData.friction !== undefined ? wData.friction : 0.95;
+            walls.push(wall);
+        }
+
+        console.log(`Simulation loaded successfully! Version: ${data.meta.version}`);
+        alert('Simulation loaded successfully!');
+        document.getElementById('load-modal').style.display = 'none';
+
+    } catch (error) {
+        console.error('Error loading simulation data:', error);
+        alert('Error loading simulation data. The JSON is invalid or corrupted. See console for details.');
+    }
+}
+
+
+// ====================================================================
 // --- UI / Event Handlers ---
 // ====================================================================
 
-// --- Control Panel Visibility ---
+// --- Modal Control ---
+document.querySelectorAll('.modal-close-btn').forEach(button => {
+    button.addEventListener('click', () => {
+        document.getElementById(button.dataset.modal).style.display = 'none';
+    });
+});
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.getElementById('help-modal').style.display = 'none';
+        document.getElementById('save-modal').style.display = 'none';
+        document.getElementById('load-modal').style.display = 'none';
+    }
+});
+
+// --- Save/Load Buttons ---
+document.getElementById('saveBtn').onclick = function() {
+    const json = saveSimulation();
+    document.getElementById('saveDataTextarea').value = json;
+    document.getElementById('save-modal').style.display = 'flex';
+};
+document.getElementById('copySaveDataBtn').onclick = function() {
+    const textarea = document.getElementById('saveDataTextarea');
+    textarea.select();
+    document.execCommand('copy');
+    this.textContent = 'Copied!';
+    setTimeout(() => this.textContent = 'Copy Data', 1500);
+};
+
+document.getElementById('loadBtn').onclick = function() {
+    document.getElementById('loadDataTextarea').value = '';
+    document.getElementById('load-modal').style.display = 'flex';
+};
+document.getElementById('loadDataBtn').onclick = function() {
+    const json = document.getElementById('loadDataTextarea').value;
+    loadSimulation(json);
+};
+
+// --- Panel/Help Button Visibility ---
 const controlsPanel = document.getElementById('controls-panel');
 const toggleBtn = document.getElementById('toggle-btn');
 toggleBtn.addEventListener('click', () => {
 	controlsPanel.classList.toggle('visible');
 	toggleBtn.textContent = controlsPanel.classList.contains('visible') ? 'Controls ◀' : 'Controls ▶';
 });
-
-// --- Help Modal Logic ---
-const helpModal = document.getElementById('help-modal');
-document.getElementById('helpBtn').onclick = () => { helpModal.style.display = 'flex'; };
-document.getElementById('help-close-btn').onclick = () => { helpModal.style.display = 'none'; };
-helpModal.addEventListener('click', (e) => {
-    if (e.target === helpModal) {
-        helpModal.style.display = 'none';
-    }
-});
-// Also close help on ESC key
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        helpModal.style.display = 'none';
-    }
-});
+document.getElementById('helpBtn').onclick = () => { document.getElementById('help-modal').style.display = 'flex'; };
 
 
 // Grid Control Logic
