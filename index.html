@@ -224,47 +224,20 @@
                     <button id="themeToggleBtn">Theme: Dark 🌙</button>
                 </div>
                 <div class="control-item">
-                    <button id="velocityBtn">Show Velocity: Off</button>
+                    <button id="velocityBtn">Show Velocity Vectors: Off</button>
+                </div>
+                <div class="control-item">
+                    <button id="speedLabelBtn">Show Speed (VEL): Off</button>
                 </div>
                 <div class="control-item">
                     <button id="massLabelBtn">Show Mass: On</button>
                 </div>
-            </div>
-        </div>
-        
-        <div class="control-group">
-            <h3 class="collapsible-header">Simulation Controls <span class="toggle-arrow">▶</span></h3>
-            <div class="control-content">
                 <div class="control-item">
-                    <button id="pauseBtn">Pause: Off</button>
-                    <button id="helpBtn">How to Play 💡</button>
-                </div>
-                <div class="control-item">
-                    <button id="saveBtn">Save/Export 💾</button>
-                    <button id="loadBtn">Load/Import 📤</button>
-                </div>
-                <div class="control-item">
-                    <button id="deleteModeBtn">Single-Click Delete: Off</button>
-                </div>
-                <div class="control-item">
-                    <button id="wallModeBtn">Wall Mode: Off</button>
-                </div>
-                <div class="control-item">
-                    <button id="clearAllBtn" style="background: #c00;">Clear All</button>
+                    <button id="showGridBtn">Show Grid: Off</button>
                 </div>
             </div>
         </div>
 
-        <div class="control-group">
-            <h3 class="collapsible-header">Feedback <span class="toggle-arrow">▶</span></h3>
-            <div class="control-content" id="feedback-content">
-                <div class="feedback-item"><span>FPS:</span> <span id="fpsValue">0</span></div>
-                <div class="feedback-item"><span>Balls:</span> <span id="ballCount">0</span></div>
-                <div class="feedback-item"><span>Springs:</span> <span id="springCount">0</span></div>
-                <div class="feedback-item"><span>Custom Walls:</span> <span id="wallCount">0</span></div>
-            </div>
-        </div>
-        
         <div class="control-group">
             <h3 class="collapsible-header">Global Physics <span class="toggle-arrow">▶</span></h3>
             <div class="control-content">
@@ -286,7 +259,7 @@
                 </div>
             </div>
         </div>
-
+        
         <div class="control-group">
             <h3 class="collapsible-header">Boundary Walls <span class="toggle-arrow">▶</span></h3>
             <div class="control-content">
@@ -302,8 +275,11 @@
         </div>
 
         <div class="control-group">
-            <h3 class="collapsible-header">Grid Snapping (Wall Mode) <span class="toggle-arrow">▶</span></h3>
+            <h3 class="collapsible-header">Object & Wall Creation <span class="toggle-arrow">▶</span></h3>
             <div class="control-content">
+                <div class="control-item">
+                    <button id="wallModeBtn">Wall Mode: Off</button>
+                </div>
                 <div class="control-item">
                     <button id="snapGridBtn">Snap Grid: On</button>
                 </div>
@@ -311,19 +287,46 @@
                     Snap Size (px): 
                     <input type="number" id="gridSizeInput" value="50" step="10" min="10" max="200">
                 </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3 class="collapsible-header">Tools & File Management <span class="toggle-arrow">▶</span></h3>
+            <div class="control-content">
                 <div class="control-item">
-                    <button id="showGridBtn">Show Grid: Off</button>
+                    <button id="pauseBtn">Pause: Off</button>
+                    <button id="helpBtn">How to Play 💡</button>
                 </div>
+                <div class="control-item">
+                    <button id="saveBtn">Save/Export 💾</button>
+                    <button id="loadBtn">Load/Import 📤</button>
+                </div>
+                <div class="control-item">
+                    <button id="deleteModeBtn">Single-Click Delete: Off</button>
+                </div>
+                <div class="control-item">
+                    <button id="clearAllBtn" style="background: #c00;">Clear All</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3 class="collapsible-header">Feedback <span class="toggle-arrow">▶</span></h3>
+            <div class="control-content" id="feedback-content">
+                <div class="feedback-item"><span>FPS:</span> <span id="fpsValue">0</span></div>
+                <div class="feedback-item"><span>Balls:</span> <span id="ballCount">0</span></div>
+                <div class="feedback-item"><span>Springs:</span> <span id="springCount">0</span></div>
+                <div class="feedback-item"><span>Custom Walls:</span> <span id="wallCount">0</span></div>
             </div>
         </div>
         
         <div id="update-board" class="control-group collapsed">
-            <h3 class="collapsible-header">Update Board (v6.8) <span class="toggle-arrow">▶</span></h3>
+            <h3 class="collapsible-header">Update Board (v7.1) <span class="toggle-arrow">▶</span></h3>
             <div class="control-content">
                 <p>Recent Fixes/Additions:</p>
                 <ul>
-                    <li>**v6.8:** Fixed issue preventing **new balls from spawning** on an empty canvas click.</li>
-                    <li>**v6.7:** Added **Theme Toggle (Dark/Light)** and **Live Feedback**.</li>
+                    <li>**v7.1:** Reorganized sidebar into logical groups.</li>
+                    <li>**v7.0:** Added **Show Speed (VEL)** numerical label control.</li>
                 </ul>
             </div>
         </div>
@@ -385,6 +388,7 @@
         let GRAVITY = BASE_GRAVITY_UNIT * 0.5; 
         let gravityOn = true;
         let showVelocity = false;
+        let showSpeedLabel = false; 
         let FRICTION = 0.99;
         let resistanceOn = true;
         const RADIUS = 20; 
@@ -498,7 +502,7 @@
         }
 
 
-        // --- Class Definitions (Same as before) ---
+        // --- Class Definitions (Modified Circle.draw) ---
         
         class Circle {
             constructor(x, y) {
@@ -518,14 +522,30 @@
                 ctx.strokeStyle = theme === 'dark' ? '#fff' : '#000';
                 ctx.lineWidth = 2;
                 ctx.stroke();
+                
                 const labelColor = theme === 'dark' ? '#fff' : '#222';
+                ctx.font = '12px sans-serif'; ctx.fillStyle = labelColor; ctx.textAlign = 'center';
+                
+                let yOffset = this.radius + 10;
+                
+                // Draw Label
                 if (this.label) {
-                    ctx.font = '14px sans-serif'; ctx.fillStyle = labelColor; ctx.textAlign = 'center';
-                    ctx.fillText(this.label, this.x, this.y - this.radius - (showMassLabel ? 25 : 10)); 
+                    ctx.font = '14px sans-serif'; 
+                    ctx.fillText(this.label, this.x, this.y - yOffset); 
+                    yOffset += 15;
+                    ctx.font = '12px sans-serif';
                 }
+                
+                // Draw Speed (VEL) Label
+                if (showSpeedLabel) {
+                    const speed = Math.hypot(this.vx, this.vy);
+                    ctx.fillText('VEL: ' + speed.toFixed(1), this.x, this.y - yOffset); 
+                    yOffset += 15;
+                }
+                
+                // Draw Mass Label
                 if (showMassLabel) {
-                    ctx.font = '12px sans-serif'; ctx.fillStyle = labelColor; ctx.textAlign = 'center';
-                    ctx.fillText('m=' + this.mass.toFixed(2), this.x, this.y - this.radius - 10);
+                    ctx.fillText('m=' + this.mass.toFixed(2), this.x, this.y - yOffset);
                 }
             }
             update() {
@@ -613,10 +633,43 @@
             for (let x = 0; x <= canvas.width; x += gridSize) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
             for (let y = 0; y <= canvas.height; y += gridSize) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
         }
+        
+        function drawVelocityVectors() {
+            if (!showVelocity) return;
+            
+            for (let circle of circles) {
+                let vx = circle.vx, vy = circle.vy;
+                let speed = Math.hypot(vx, vy);
+                if (speed > 0.5) {
+                    let arrowLen = Math.min(40, speed * 8); 
+                    let angle = Math.atan2(vy, vx);
+                    let x1 = circle.x, y1 = circle.y;
+                    let x2 = x1 + Math.cos(angle) * arrowLen;
+                    let y2 = y1 + Math.sin(angle) * arrowLen;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = '#0ff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x2, y2);
+                    ctx.lineTo(x2 - Math.cos(angle - Math.PI / 6) * 8, y2 - Math.sin(angle - Math.PI / 6) * 8);
+                    ctx.moveTo(x2, y2);
+                    ctx.lineTo(x2 - Math.cos(angle + Math.PI / 6) * 8, y2 - Math.sin(angle + Math.PI / 6) * 8);
+                    ctx.stroke();
+                }
+            }
+        }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawGrid();
+            
+            drawVelocityVectors(); 
+
             for (let spring of springs) spring.draw();
             for (let wall of walls) wall.draw();
             for (let circle of circles) circle.draw();
@@ -646,7 +699,7 @@
             for (let spring of springs) spring.update();
             for (let circle of circles) circle.update();
             
-            // Simplified Collision Logic (Kept for completeness)
+            // Simplified Collision Logic (Same as before)
             for (let i = 0; i < circles.length; i++) {
                 for (let j = i+1; j < circles.length; j++) {
                     let a = circles[i], b = circles[j];
@@ -737,7 +790,7 @@
             requestAnimationFrame(loop);
         }
         
-        // --- Serialization / Deserialization Logic (Same as before) ---
+        // --- Serialization / Deserialization Logic ---
 
         function serializeState() {
             const circleData = circles.map(c => c.toJSON());
@@ -749,7 +802,7 @@
                 springs: springData,
                 walls: wallData,
                 global: {
-                    gravityOn, GRAVITY, resistanceOn, showVelocity, showMassLabel, 
+                    gravityOn, GRAVITY, resistanceOn, showVelocity, showMassLabel, showSpeedLabel, 
                     wallTopOn, wallBottomOn, wallLeftOn, wallRightOn, 
                     snapGrid, gridSize, showGrid, theme
                 }
@@ -786,7 +839,7 @@
                     const wall = new Wall(wData.x1, wData.y1, wData.x2, wData.y2);
                     wall.color = wData.color || '#fff';
                     wall.restitution = wData.restitution !== undefined ? wData.restitution : 0.8;
-                    wall.friction = wData.friction !== undefined ? wData.friction : 0.95;
+                    wall.friction = wData.friction !== undefined ? w.friction : 0.95;
                     walls.push(wall);
                 }
 
@@ -796,6 +849,7 @@
                     resistanceOn = !!data.global.resistanceOn;
                     showVelocity = !!data.global.showVelocity;
                     showMassLabel = !!data.global.showMassLabel;
+                    showSpeedLabel = !!data.global.showSpeedLabel; 
                     wallTopOn = !!data.global.wallTopOn;
                     wallBottomOn = !!data.global.wallBottomOn;
                     wallLeftOn = !!data.global.wallLeftOn;
@@ -890,7 +944,7 @@
             }
         }
 
-        // --- Control Panel and UI Logic (Same as before) ---
+        // --- Control Panel and UI Logic ---
         
         const controlsPanel = document.getElementById('controls-panel');
         const toggleBtn = document.getElementById('toggle-btn');
@@ -911,7 +965,8 @@
             document.getElementById('wallBottomBtn').textContent = `Bottom Wall: ${wallBottomOn ? 'On' : 'Off'}`;
             document.getElementById('wallLeftBtn').textContent = `Left Wall: ${wallLeftOn ? 'On' : 'Off'}`;
             document.getElementById('wallRightBtn').textContent = `Right Wall: ${wallRightOn ? 'On' : 'Off'}`;
-            document.getElementById('velocityBtn').textContent = `Show Velocity: ${showVelocity ? 'On' : 'Off'}`;
+            document.getElementById('velocityBtn').textContent = `Show Velocity Vectors: ${showVelocity ? 'On' : 'Off'}`;
+            document.getElementById('speedLabelBtn').textContent = `Show Speed (VEL): ${showSpeedLabel ? 'On' : 'Off'}`;
             document.getElementById('massLabelBtn').textContent = `Show Mass: ${showMassLabel ? 'On' : 'Off'}`;
             const themeText = theme === 'dark' ? 'Dark 🌙' : 'Light ☀️';
             document.getElementById('themeToggleBtn').textContent = `Theme: ${themeText}`;
@@ -953,6 +1008,7 @@
         document.getElementById('wallLeftBtn').onclick = () => { wallLeftOn = !wallLeftOn; updateControlButtons(); };
         document.getElementById('wallRightBtn').onclick = () => { wallRightOn = !wallRightOn; updateControlButtons(); };
         document.getElementById('velocityBtn').onclick = () => { showVelocity = !showVelocity; updateControlButtons(); };
+        document.getElementById('speedLabelBtn').onclick = () => { showSpeedLabel = !showSpeedLabel; updateControlButtons(); };
         document.getElementById('massLabelBtn').onclick = () => { showMassLabel = !showMassLabel; updateControlButtons(); };
         document.getElementById('pauseBtn').onclick = () => { paused = !paused; updateControlButtons(); };
         document.getElementById('clearAllBtn').onclick = () => { 
@@ -1012,7 +1068,7 @@
             }
         };
         
-        // --- Mouse and Key Events (FIX APPLIED HERE) ---
+        // --- Mouse and Key Events ---
 
         let mouseX = 0, mouseY = 0;
         let isDragging = false;
@@ -1098,16 +1154,15 @@
             }
             
             // 4. Create new ball / Connect Mode Logic
-            // FIX: This section now runs if the click didn't trigger deletion, wall drawing, or dragging a ball.
             if (connectMode) {
-                // If clicked on empty space (no hoveredElement), exit connect mode.
                 if (!hoveredElement) {
                     connectMode = false;
                     selectedBall = null;
                 }
             } else {
-                // If not in connect mode, and no element was clicked/dragged, create a new ball.
-                circles.push(new Circle(mouseX, mouseY));
+                if (!hoveredElement) {
+                    circles.push(new Circle(mouseX, mouseY));
+                }
             }
         };
 
