@@ -89,6 +89,31 @@
 		.ball-editor-panel input[type="text"], .ball-editor-panel input[type="number"] {
 			width: 100px;
 		}
+        /* Update Board Specific Styles */
+        #update-board {
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid #555;
+            font-size: 14px;
+        }
+        #update-board h3 {
+            border-bottom: none;
+        }
+        #update-board ul {
+            list-style: none;
+            padding-left: 0;
+            margin: 5px 0 15px 0;
+        }
+        #update-board li {
+            margin-bottom: 5px;
+            padding-left: 10px;
+            text-indent: -10px;
+        }
+        #update-board li:before {
+            content: "•";
+            margin-right: 5px;
+            color: #4af;
+        }
 	</style>
 </head>
 <body>
@@ -156,7 +181,20 @@
 				<button id="massLabelBtn">Show Mass: On</button>
 			</div>
 		</div>
-	</div>
+        
+        <div id="update-board" class="control-group">
+            <h3>Update Board (v4.0)</h3>
+            
+            <p>Recent Additions:</p>
+            <ul>
+                <li>**v4.0:** Added **Negative Gravity** support to the slider.</li>
+                <li>**v4.0:** Added **Custom Gravity %** input field for precise control.</li>
+                <li>**v3.0:** Corrected physics: Ball **mass now affects spring tension and gravity pull** ($a=F/m$).</li>
+                <li>**v3.0:** Fixed boundary bugs for the top and right walls.</li>
+                <li>**v2.0:** Added **Wall Toggles** (Top, Bottom, Left, Right) to the panel.</li>
+            </ul>
+        </div>
+        </div>
 
 	<canvas id="canvas"></canvas>
 	<script>
@@ -315,7 +353,7 @@ class Circle {
 		this.tx = this.x;
 		this.ty = this.y;
 		
-		// Gravity force applied, scaled by mass.
+		// Gravity force applied, scaled by mass. Negative gravity works here too.
 		if (gravityOn) {
 			this.vy += GRAVITY * this.mass; 
 		}
@@ -575,7 +613,6 @@ applyGravityBtn.onclick = function() {
     let percentage = parseFloat(gravityCustomInput.value);
     
     // Clamp the percentage input to a reasonable range 
-    // (min -200%, max 200%) to keep simulation stable.
     if (isNaN(percentage)) percentage = 0;
     percentage = Math.max(-200, Math.min(200, percentage));
     
