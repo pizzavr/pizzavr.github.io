@@ -6,39 +6,124 @@
 	<style>
 		body { margin: 0; overflow: hidden; }
 		canvas { background: #222; display: block; }
-		#info { position: absolute; top: 10px; left: 10px; color: #fff; font-family: sans-serif; user-select: none; }
-		#info button {
+		#controls-panel {
+			position: absolute;
+			top: 0;
+			right: 0;
+			width: 280px;
+			height: 100vh;
+			background: rgba(34, 34, 34, 0.9);
+			color: #fff;
+			font-family: sans-serif;
+			padding: 20px;
+			box-sizing: border-box;
+			transform: translateX(100%);
+			transition: transform 0.3s ease-in-out;
+			overflow-y: auto;
+			z-index: 100;
+		}
+		#controls-panel.visible {
+			transform: translateX(0);
+		}
+		#toggle-btn {
+			position: absolute;
+			top: 10px;
+			right: 10px;
+			background: #333;
+			color: #fff;
+			border: none;
+			border-radius: 4px;
+			padding: 8px 12px;
+			cursor: pointer;
+			z-index: 101;
+			font-size: 16px;
+		}
+		.control-group {
+			margin-bottom: 20px;
+		}
+		.control-group h3 {
+			margin-top: 0;
+			border-bottom: 1px solid #555;
+			padding-bottom: 5px;
+		}
+		.control-item {
+			margin-bottom: 10px;
+		}
+		.control-item label {
+			display: block;
+			margin-bottom: 5px;
+		}
+		button {
 			padding: 5px 10px;
 			margin: 2px;
 			border: none;
 			border-radius: 4px;
 			cursor: pointer;
 		}
-		#info input[type="range"] {
+		input[type="range"] {
 			vertical-align: middle;
-			width: 100px;
+			width: 150px;
+		}
+		/* For the info text */
+		#info-text {
+			position: absolute;
+			top: 10px;
+			left: 10px;
+			color: #fff;
+			font-family: sans-serif;
+			user-select: none;
 		}
 	</style>
 </head>
 <body>
-<div id="info">
-	<b>Physics Circles Playground</b><br>
-	Click to add circles.<br>
-	**Right-click a ball to edit its mass and lock state**.<br>
-	Drag balls to move.<br>
-	Double-click a ball, then click another to connect.<br>
-	Hover over an element and press 'D' to delete it.<br>
-	<button id="deleteModeBtn">Single-Click Delete: Off</button>
-	<button id="gravityBtn">Gravity: On</button>
-	<button id="velocityBtn">Show Velocity: Off</button>
-	Gravity Strength: <input type="range" id="gravitySlider" min="0" max="2" step="0.01" value="0.5" style="vertical-align:middle; width:100px;">
-	<span id="gravityValue">0.50</span>
-	<button id="resistanceBtn">Resistance: On</button>
-	<button id="massLabelBtn">Show Mass: On</button>
-	<button id="pauseBtn">Pause: Off</button>
-</div>
-<canvas id="canvas"></canvas>
-<script>
+	<div id="info-text">
+		**Physics Circles Playground**<br>
+		Click to add circles.<br>
+		Right-click a ball to edit its mass and lock state.<br>
+		Drag balls to move.<br>
+		Double-click a ball, then click another to connect.<br>
+		Hover over an element and press 'D' to delete it.
+	</div>
+	<button id="toggle-btn">Controls ▶</button>
+	
+	<div id="controls-panel">
+		<div class="control-group">
+			<h3>Simulation Controls</h3>
+			<div class="control-item">
+				<button id="pauseBtn">Pause: Off</button>
+			</div>
+			<div class="control-item">
+				<button id="deleteModeBtn">Single-Click Delete: Off</button>
+			</div>
+		</div>
+
+		<div class="control-group">
+			<h3>Global Physics</h3>
+			<div class="control-item">
+				<button id="gravityBtn">Gravity: On</button>
+				<div>
+					Gravity Strength: <input type="range" id="gravitySlider" min="0" max="2" step="0.01" value="0.5">
+					<span id="gravityValue">0.50</span>
+				</div>
+			</div>
+			<div class="control-item">
+				<button id="resistanceBtn">Resistance: On</button>
+			</div>
+		</div>
+
+		<div class="control-group">
+			<h3>Display Options</h3>
+			<div class="control-item">
+				<button id="velocityBtn">Show Velocity: Off</button>
+			</div>
+			<div class="control-item">
+				<button id="massLabelBtn">Show Mass: On</button>
+			</div>
+		</div>
+	</div>
+
+	<canvas id="canvas"></canvas>
+	<script>
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
@@ -57,7 +142,6 @@ let circles = [];
 let springs = [];
 let draggingBall = null;
 let dragOffset = {x:0, y:0};
-// dragHistory is only used for the flick impulse on mouseup now
 let dragHistory = []; 
 let selectedBall = null;
 let connectMode = false;
@@ -118,7 +202,6 @@ class Circle {
 		this.mass = 1; 
 		this.isDragged = false;
 		this.locked = false; 
-		// Add temp velocity storage for accurate drag-hit physics
 		this.tx = x; 
 		this.ty = y;
 	}
@@ -158,16 +241,13 @@ class Circle {
 		}
 	}
 	update() {
-		// --- FIX: Only reset velocity if LOCKED. ---
 		if (this.locked) {
 			this.vx = 0;
 			this.vy = 0;
 			return;
 		}
 
-		// If dragged, position is updated in mousemove, but we need to track velocity
 		if (this.isDragged) {
-			// Calculate drag velocity based on position change from last frame
 			this.vx = (this.x - this.tx); 
 			this.vy = (this.y - this.ty);
 			this.tx = this.x;
@@ -175,7 +255,6 @@ class Circle {
 			return;
 		}
 
-		// Update temp position
 		this.tx = this.x;
 		this.ty = this.y;
 		
@@ -286,7 +365,6 @@ function update() {
 	for (let spring of springs) spring.update();
 	for (let circle of circles) circle.update();
 	
-	// Collision resolution 
 	for (let i = 0; i < circles.length; i++) {
 		for (let j = i+1; j < circles.length; j++) {
 			let a = circles[i], b = circles[j];
@@ -302,8 +380,6 @@ function update() {
 			if (dist < minDist) {
 				let angle = Math.atan2(dy, dx);
 				let overlap = minDist - dist;
-				
-				// --- 1. Separation (Preventing overlap) ---
 				
 				if (aIsLocked) {
 					b.x += Math.cos(angle) * overlap;
@@ -322,23 +398,19 @@ function update() {
 					b.y += Math.sin(angle) * overlap * ratioB;
 				}
 				
-				// --- 2. Velocity Transfer (Conservation of Momentum) ---
 				let v1 = a.vx * Math.cos(angle) + a.vy * Math.sin(angle);
 				let v2 = b.vx * Math.cos(angle) + b.vy * Math.sin(angle);
 				
-				// Use actual mass unless locked
 				let m1 = aIsLocked ? 99999999 : a.mass; 
 				let m2 = bIsLocked ? 99999999 : b.mass;
 				let totalMomentumMass = m1 + m2;
 				
-				// 1D elastic collision formula (velocity after)
 				let v1f = (v1 * (m1 - m2) + 2 * m2 * v2) / totalMomentumMass;
 				let v2f = (v2 * (m2 - m1) + 2 * m1 * v1) / totalMomentumMass;
 				
 				let dv1 = v1f - v1;
 				let dv2 = v2f - v2;
 				
-				// Apply velocity change only if the ball is NOT locked
 				if (!aIsLocked) {
 					a.vx += dv1 * Math.cos(angle);
 					a.vy += dv1 * Math.sin(angle);
@@ -360,11 +432,19 @@ function loop() {
 	requestAnimationFrame(loop);
 }
 
+
 // ====================================================================
 // --- UI / Event Handlers ---
 // ====================================================================
 
-// Button logic (omitted for brevity, assume correct from previous scripts)
+const controlsPanel = document.getElementById('controls-panel');
+const toggleBtn = document.getElementById('toggle-btn');
+toggleBtn.addEventListener('click', () => {
+	controlsPanel.classList.toggle('visible');
+	toggleBtn.textContent = controlsPanel.classList.contains('visible') ? 'Controls ◀' : 'Controls ▶';
+});
+
+// Button logic
 document.getElementById('gravitySlider').oninput = function() {
 	GRAVITY = parseFloat(this.value);
 	document.getElementById('gravityValue').textContent = GRAVITY.toFixed(2);
@@ -522,7 +602,6 @@ canvas.addEventListener('mousedown', e => {
 			return;
 		}
 		
-		// Set drag state and initial temp position
 		draggingBall = found;
 		dragOffset.x = x - found.x;
 		dragOffset.y = y - found.y;
@@ -551,11 +630,9 @@ canvas.addEventListener('mousemove', e => {
 		let newX = x - dragOffset.x;
 		let newY = y - dragOffset.y;
 		
-		// For flick calculation on mouseup
 		dragHistory.push({x: newX, y: newY, t: performance.now()});
 		if (dragHistory.length > 10) dragHistory.shift();
 
-		// Update position, allowing Circle.update() to calculate velocity
 		draggingBall.x = newX;
 		draggingBall.y = newY;
 	}
@@ -563,7 +640,6 @@ canvas.addEventListener('mousemove', e => {
 
 canvas.addEventListener('mouseup', e => {
 	if (draggingBall) {
-		// Only apply flick velocity if the user made a fast motion.
 		if (dragHistory.length >= 2) {
 			let last = dragHistory[dragHistory.length-1];
 			let first = dragHistory[0];
@@ -576,7 +652,6 @@ canvas.addEventListener('mouseup', e => {
 				draggingBall.vy = dy / dt * flickFactor;
 			}
 		}
-		// Reset velocity tracking data
 		draggingBall.isDragged = false;
 		draggingBall = null;
 		dragHistory = [];
