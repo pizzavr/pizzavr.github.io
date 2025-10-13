@@ -64,7 +64,6 @@
 			vertical-align: middle;
 			width: 150px;
 		}
-		/* For the info text */
 		#info-text {
 			position: absolute;
 			top: 10px;
@@ -73,15 +72,24 @@
 			font-family: sans-serif;
 			user-select: none;
 		}
+		input[type="color"] {
+			height: 25px;
+			border: none;
+			padding: 0;
+			margin: 0;
+			vertical-align: middle;
+		}
+		.ball-editor-panel input[type="text"], .ball-editor-panel input[type="number"] {
+			width: 100px;
+		}
 	</style>
 </head>
 <body>
 	<div id="info-text">
 		**Physics Circles Playground**<br>
 		Click to add circles.<br>
-		Right-click a ball to edit its mass and lock state.<br>
-		Drag balls to move.<br>
-		Double-click a ball, then click another to connect.<br>
+		Right-click a ball to edit its properties instantly.<br>
+		Drag balls to move. Double-click to connect.<br>
 		Hover over an element and press 'D' to delete it.
 	</div>
 	<button id="toggle-btn">Controls ▶</button>
@@ -94,6 +102,9 @@
 			</div>
 			<div class="control-item">
 				<button id="deleteModeBtn">Single-Click Delete: Off</button>
+			</div>
+			<div class="control-item">
+				<button id="clearAllBtn">Clear All</button>
 			</div>
 		</div>
 
@@ -108,6 +119,18 @@
 			</div>
 			<div class="control-item">
 				<button id="resistanceBtn">Resistance: On</button>
+			</div>
+		</div>
+
+		<div class="control-group">
+			<h3>Boundary Walls</h3>
+			<div class="control-item">
+				<button id="wallTopBtn">Top Wall: On</button>
+				<button id="wallBottomBtn">Bottom Wall: On</button>
+			</div>
+			<div class="control-item">
+				<button id="wallLeftBtn">Left Wall: On</button>
+				<button id="wallRightBtn">Right Wall: On</button>
 			</div>
 		</div>
 
@@ -137,6 +160,13 @@ let resistanceOn = true;
 const RADIUS = 20; 
 const SPRING_STRENGTH = 0.01;
 const SPRING_LENGTH = 100;
+
+// Wall control state
+let wallTopOn = true;
+let wallBottomOn = true;
+let wallLeftOn = true;
+let wallRightOn = true;
+
 
 let circles = [];
 let springs = [];
@@ -204,6 +234,8 @@ class Circle {
 		this.locked = false; 
 		this.tx = x; 
 		this.ty = y;
+		this.color = '#4af'; 
+		this.label = ''; 
 	}
 	get radius() {
 		return RADIUS + (this.mass - 1) * 8;
@@ -211,7 +243,8 @@ class Circle {
 	draw() {
 		ctx.beginPath();
 		ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-		let fillStyle = (selectedBall === this) ? '#ff0' : (this.locked ? '#888' : '#4af');
+		
+		let fillStyle = (selectedBall === this) ? '#ff0' : (this.locked ? '#888' : this.color);
 		
 		if (hoveredElement === this) {
 			ctx.shadowBlur = 15;
@@ -225,12 +258,22 @@ class Circle {
 		ctx.lineWidth = 2;
 		ctx.stroke();
 		
+		// 1. Draw Custom Label (Name)
+		if (this.label) {
+			ctx.font = '14px sans-serif';
+			ctx.fillStyle = '#fff';
+			ctx.textAlign = 'center';
+			ctx.fillText(this.label, this.x, this.y - this.radius - (showMassLabel ? 25 : 10)); 
+		}
+
+		// 2. Draw Mass Label
 		if (showMassLabel) {
 			ctx.font = '12px sans-serif';
 			ctx.fillStyle = '#fff';
 			ctx.textAlign = 'center';
 			ctx.fillText('m=' + this.mass.toFixed(2), this.x, this.y - this.radius - 10);
 		}
+		
 		
 		if (showVelocity) {
 			let speed = Math.hypot(this.vx, this.vy);
@@ -268,10 +311,29 @@ class Circle {
 		this.y += this.vy;
 		
 		const restitution = 0.7;
-		if (this.x < this.radius) { this.x = this.radius; this.vx *= -restitution; }
-		if (this.x > canvas.width - this.radius) { this.x = canvas.width - this.radius; this.vx *= -restitution; }
-		if (this.y < this.radius) { this.y = this.radius; this.vy *= -restitution; }
-		if (this.y > canvas.height - this.radius) { this.y = canvas.height - this.radius; this.vy *= -restitution; }
+
+		// --- Boundary Collision Logic (FIXED) ---
+		
+		// Left Wall
+		if (wallLeftOn && this.x < this.radius) { 
+			this.x = this.radius; 
+			this.vx *= -restitution; 
+		}
+		// Right Wall (FIX: Used canvas.width)
+		if (wallRightOn && this.x > canvas.width - this.radius) { 
+			this.x = canvas.width - this.radius; 
+			this.vx *= -restitution; 
+		}
+		// Top Wall (FIX: Used 0 for boundary)
+		if (wallTopOn && this.y < this.radius) { 
+			this.y = this.radius; 
+			this.vy *= -restitution; 
+		}
+		// Bottom Wall
+		if (wallBottomOn && this.y > canvas.height - this.radius) { 
+			this.y = canvas.height - this.radius; 
+			this.vy *= -restitution; 
+		}
 	}
 }
 
@@ -444,7 +506,40 @@ toggleBtn.addEventListener('click', () => {
 	toggleBtn.textContent = controlsPanel.classList.contains('visible') ? 'Controls ◀' : 'Controls ▶';
 });
 
-// Button logic
+// Wall Toggle Handler Factory
+function createWallToggle(wallVarName, buttonId) {
+	const btn = document.getElementById(buttonId);
+	let isWallOn = wallVarName === 'wallTopOn' || wallVarName === 'wallBottomOn' || wallVarName === 'wallLeftOn' || wallVarName === 'wallRightOn';
+
+	btn.onclick = function() {
+		// Toggle the corresponding global variable
+		eval(`${wallVarName} = !${wallVarName};`);
+		// Update button text and style
+		this.textContent = `${buttonId.replace('wall', '').replace('Btn', ' Wall')}: ${eval(wallVarName) ? 'On' : 'Off'}`;
+		this.style.background = eval(wallVarName) ? '' : '#888';
+	};
+}
+
+createWallToggle('wallTopOn', 'wallTopBtn');
+createWallToggle('wallBottomOn', 'wallBottomBtn');
+createWallToggle('wallLeftOn', 'wallLeftBtn');
+createWallToggle('wallRightOn', 'wallRightBtn');
+
+
+// Clear All button
+document.getElementById('clearAllBtn').onclick = function() {
+	circles = [];
+	springs = [];
+	draggingBall = null;
+	selectedBall = null;
+	connectMode = false;
+	selectedSpring = null;
+	if (window.ballEditor) window.ballEditor.remove();
+	if (window.springEditor) window.springEditor.remove();
+	hoveredElement = null;
+};
+
+// Other Button logic
 document.getElementById('gravitySlider').oninput = function() {
 	GRAVITY = parseFloat(this.value);
 	document.getElementById('gravityValue').textContent = GRAVITY.toFixed(2);
@@ -487,6 +582,7 @@ function showBallEditor(ball) {
 	if (window.ballEditor) window.ballEditor.remove();
 	let editor = document.createElement('div');
 	window.ballEditor = editor;
+	editor.className = 'ball-editor-panel';
 	editor.style.position = 'absolute';
 	editor.style.background = '#333';
 	editor.style.color = '#fff';
@@ -494,16 +590,17 @@ function showBallEditor(ball) {
 	editor.style.borderRadius = '8px';
 	editor.style.zIndex = 10;
 	editor.innerHTML = `<b>Edit Ball</b><br>
-		Mass: <input type='number' id='ballMass' value='${ball.mass.toFixed(2)}' step='0.1' min='0.1' max='10'><br>
+		<label>Name:</label> <input type='text' id='ballLabel' value='${ball.label}'><br>
+		<label>Mass:</label> <input type='number' id='ballMass' value='${ball.mass.toFixed(2)}' step='0.1' min='0.1' max='10'><br>
+		<label>Color:</label> <input type='color' id='ballColor' value='${ball.color}'><br>
 		<label><input type='checkbox' id='ballLock' ${ball.locked ? 'checked' : ''}> Lock Ball</label><br>
-		<button id='ballSave'>Save</button>
 		<button id='ballClose'>Close</button>
 	`;
 	document.body.appendChild(editor);
 	
 	function updatePanelPosition() {
 		editor.style.left = (ball.x - 20) + 'px';
-		editor.style.top = (ball.y - ball.radius - 80) + 'px';
+		editor.style.top = (ball.y - ball.radius - 120) + 'px'; 
 	}
 	updatePanelPosition();
 	
@@ -515,19 +612,32 @@ function showBallEditor(ball) {
 	}
 	followBall();
 	
-	document.getElementById('ballSave').onclick = () => {
-		ball.mass = Math.max(0.1, parseFloat(document.getElementById('ballMass').value));
-		ball.locked = document.getElementById('ballLock').checked;
-		editor.remove();
-		window.ballEditor = null;
+	// --- Instant Update Logic ---
+	const massInput = document.getElementById('ballMass');
+	const colorInput = document.getElementById('ballColor');
+	const labelInput = document.getElementById('ballLabel');
+	const lockInput = document.getElementById('ballLock');
+
+	massInput.oninput = () => {
+		ball.mass = Math.max(0.1, parseFloat(massInput.value));
 	};
+	colorInput.oninput = () => {
+		ball.color = colorInput.value;
+	};
+	labelInput.oninput = () => {
+		ball.label = labelInput.value;
+	};
+	lockInput.oninput = () => {
+		ball.locked = lockInput.checked;
+	};
+	
 	document.getElementById('ballClose').onclick = () => {
 		editor.remove();
 		window.ballEditor = null;
 	};
 }
 
-// Spring property editor
+// Spring property editor (unchanged)
 function showSpringEditor(spring) {
 	if (window.springEditor) window.springEditor.remove();
 	springEditor = document.createElement('div');
