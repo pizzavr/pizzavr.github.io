@@ -1,180 +1,159 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<title>Physics Circles Playground</title>
-	<style>
-		body { margin: 0; overflow: hidden; }
-		canvas { background: #222; display: block; }
-		
-		/* --- Controls Panel Styles --- */
-		#controls-panel {
-			position: fixed; /* Use fixed for better scrolling independence */
-			top: 0;
-			right: 0;
-			width: 280px;
-			height: 100vh;
-			background: rgba(34, 34, 34, 0.9);
-			color: #fff;
-			font-family: sans-serif;
-			padding: 20px;
-			box-sizing: border-box;
-			/* Start off-screen (translateX(100%)) */
-			transform: translateX(100%);
-			transition: transform 0.3s ease-in-out;
-			overflow-y: auto;
-			z-index: 100;
-		}
-		#controls-panel.visible {
-			/* Slide into view (translateX(0)) */
-			transform: translateX(0);
-		}
-		
-		/* --- Toggle Button Styles --- */
-		#toggle-btn {
-			position: fixed; /* Must be fixed to stay relative to screen edge */
-			top: 10px;
-			/* Default position (when panel is hidden) */
-			right: 10px; 
-			background: #333;
-			color: #fff;
-			border: none;
-			border-radius: 4px;
-			padding: 8px 12px;
-			cursor: pointer;
-			z-index: 101;
-			font-size: 16px;
-			transition: right 0.3s ease-in-out; /* Add transition for smooth movement */
-		}
+    <meta charset="UTF-8">
+    <title>Physics Circles Playground</title>
+    <style>
+        /* ==================================================================== */
+        /* --- Base & Dark Theme (Default) --- */
+        /* ==================================================================== */
+        :root {
+            --bg-color: #222;
+            --panel-bg: rgba(34, 34, 34, 0.9);
+            --text-color: #fff;
+            --border-color: #333;
+            --button-bg: #333;
+            --button-hover: #555;
+            --canvas-bg: #222;
+            --link-color: #4af;
+        }
 
-		.control-group {
-			margin-bottom: 20px;
-			padding-bottom: 10px;
-			border-bottom: 1px solid #333; /* Separator for groups */
-		}
-		.control-group h3 {
-			margin-top: 0;
-			border-bottom: none;
-			padding-bottom: 5px;
-			cursor: pointer; /* Indicate that the header is clickable */
-			user-select: none;
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-		}
-		.control-group h3 span.toggle-arrow {
-			font-size: 1.2em;
-			transition: transform 0.2s;
-			margin-left: 10px;
-			/* Default: Expanded (Pointing Down) */
-			transform: rotate(90deg); 
-		}
-		
-		/* Style for collapsed state */
-		.control-group.collapsed .control-content {
-			display: none;
-		}
-		.control-group.collapsed h3 span.toggle-arrow {
-			/* Collapsed: Pointing Right */
-			transform: rotate(0deg); 
-		}
-		
-		.control-item {
-			margin-bottom: 10px;
-		}
-		.control-item label {
-			display: block;
-			margin-bottom: 5px;
-		}
-		button {
-			padding: 5px 10px;
-			margin: 2px;
-			border: none;
-			border-radius: 4px;
-			cursor: pointer;
-		}
-		input[type="range"] {
-			vertical-align: middle;
-			width: 150px;
-		}
-		/* Style for custom input */
-		.gravity-input-group input[type="number"], 
-		.grid-input-group input[type="number"] {
-			width: 50px;
-			text-align: right;
-			margin-right: 5px;
-			vertical-align: middle;
-		}
-		#info-text {
-			position: absolute;
-			top: 10px;
-			left: 10px;
-			color: #fff;
-			font-family: sans-serif;
-			user-select: none;
-		}
-		input[type="color"] {
-			height: 25px;
-			border: none;
-			padding: 0;
-			margin: 0;
-			vertical-align: middle;
-		}
-		.editor-panel {
-			position: absolute;
-			background: #333;
-			color: #fff;
-			padding: 12px;
-			border-radius: 8px;
-			z-index: 10;
-			font-size: 14px;
-			box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-		}
-		.editor-panel label, .editor-panel input, .editor-panel button {
-			vertical-align: middle;
-			margin: 5px 0;
-		}
-		.editor-panel input[type="number"], .editor-panel input[type="text"] {
-			width: 60px;
-			margin-left: 5px;
-			background: #222;
-			border: 1px solid #555;
-			color: #fff;
-		}
-		.editor-panel input[type="color"] {
-			background: none;
-			border: none;
-		}
-		.editor-panel button {
-			margin-top: 10px;
-		}
-        /* Update Board Specific Styles */
-        #update-board {
-            margin-top: 30px;
-            padding-top: 10px;
-            border-top: 1px solid #555;
-            font-size: 14px;
+        /* ==================================================================== */
+        /* --- Light Theme Overrides --- */
+        /* ==================================================================== */
+        body.light-theme {
+            --bg-color: #fff;
+            --panel-bg: rgba(250, 250, 250, 0.95);
+            --text-color: #222;
+            --border-color: #ccc;
+            --button-bg: #e0e0e0;
+            --button-hover: #d0d0d0;
+            --canvas-bg: #f0f0f0;
+            --link-color: #05a;
         }
-        #update-board h3 {
-            border-bottom: none;
+
+        body { margin: 0; overflow: hidden; background: var(--bg-color); color: var(--text-color); }
+        canvas { background: var(--canvas-bg); display: block; }
+        
+        /* --- Controls Panel Styles (rest remains the same) --- */
+        #controls-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 280px;
+            height: 100vh;
+            background: var(--panel-bg);
+            color: var(--text-color);
+            font-family: sans-serif;
+            padding: 20px;
+            box-sizing: border-box;
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+            overflow-y: auto;
+            z-index: 100;
         }
-        #update-board ul {
-            list-style: none;
-            padding-left: 0;
-            margin: 5px 0 15px 0;
+        #controls-panel.visible { transform: translateX(0); }
+        
+        /* --- Toggle Button Styles --- */
+        #toggle-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px; 
+            background: var(--button-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            z-index: 101;
+            font-size: 16px;
+            transition: right 0.3s ease-in-out, background 0.2s;
         }
-        #update-board li {
-            margin-bottom: 5px;
-            padding-left: 10px;
-            text-indent: -10px;
+        #toggle-btn:hover { background: var(--button-hover); }
+
+        .control-group {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color); 
         }
-        #update-board li:before {
-            content: "•";
+        .control-group h3 {
+            margin-top: 0;
+            padding-bottom: 5px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .control-group h3 span.toggle-arrow {
+            font-size: 1.2em;
+            transition: transform 0.2s;
+            margin-left: 10px;
+            transform: rotate(90deg); 
+        }
+        
+        .control-group.collapsed .control-content { display: none; }
+        .control-group.collapsed h3 span.toggle-arrow { transform: rotate(0deg); }
+        
+        .control-item { margin-bottom: 10px; }
+        .control-item label { display: block; margin-bottom: 5px; }
+        button {
+            padding: 5px 10px;
+            margin: 2px;
+            border: 1px solid var(--border-color);
+            background: var(--button-bg);
+            color: var(--text-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        button:hover { background: var(--button-hover); }
+        input[type="range"] { vertical-align: middle; width: 150px; }
+        .gravity-input-group input[type="number"], 
+        .grid-input-group input[type="number"] {
+            width: 50px;
+            text-align: right;
             margin-right: 5px;
-            color: #4af;
+            vertical-align: middle;
+            background: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
         }
-
-        /* Modal Styles (Help/Save/Load) */
+        #info-text {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: var(--text-color);
+            font-family: sans-serif;
+            user-select: none;
+        }
+        input[type="color"] {
+            height: 25px;
+            border: none;
+            padding: 0;
+            margin: 0;
+            vertical-align: middle;
+        }
+        .editor-panel {
+            position: absolute;
+            background: var(--button-bg);
+            color: var(--text-color);
+            padding: 12px;
+            border-radius: 8px;
+            z-index: 10;
+            font-size: 14px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
+        }
+        .editor-panel input[type="number"], .editor-panel input[type="text"] {
+            width: 60px;
+            margin-left: 5px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+        
+        /* Modal Styles */
         .modal {
             position: fixed;
             top: 0;
@@ -189,8 +168,8 @@
             font-family: sans-serif;
         }
         .modal-content {
-            background: #222;
-            color: #fff;
+            background: var(--bg-color);
+            color: var(--text-color);
             padding: 30px;
             border-radius: 10px;
             max-width: 90%;
@@ -200,19 +179,11 @@
             overflow: auto;
         }
         .modal-content h2 {
-            border-bottom: 2px solid #4af;
+            border-bottom: 2px solid var(--link-color);
             padding-bottom: 10px;
             margin-top: 0;
         }
-        .modal-close-btn {
-            float: right;
-            background: #c00;
-            color: #fff;
-            font-weight: bold;
-            padding: 8px 12px;
-            border-radius: 4px;
-        }
-        #saveDataTextarea {
+        #saveDataTextarea, #loadDataTextarea {
             width: 100%;
             min-height: 200px;
             background: #111;
@@ -223,131 +194,146 @@
             resize: vertical;
             font-family: monospace;
         }
-        .modal-actions {
-            margin-top: 15px;
-            text-align: right;
-        }
-        .modal-actions button {
-            margin-left: 10px;
-        }
-	</style>
-</head>
-<body>
-	<div id="info-text">
-		**Physics Circles Playground**<br>
-		Click to add circles.<br>
-		Right-click an element to edit its properties.<br>
-		Drag balls to move. Double-click to connect.<br>
-		Hover over an element and press 'D' to delete it.
-	</div>
-	<button id="toggle-btn">Controls ▶</button>
-	
-	<div id="controls-panel">
-		<div class="control-group">
-			<h3 class="collapsible-header">Simulation Controls <span class="toggle-arrow">▶</span></h3>
-			<div class="control-content">
-				<div class="control-item">
-					<button id="pauseBtn">Pause: Off</button>
-					<button id="helpBtn">How to Play 💡</button>
-				</div>
-				<div class="control-item">
-					<button id="saveBtn">Save/Export 💾</button>
-					<button id="loadBtn">Load/Import 📤</button>
-				</div>
-				<div class="control-item">
-					<button id="deleteModeBtn">Single-Click Delete: Off</button>
-				</div>
-				<div class="control-item">
-					<button id="wallModeBtn">Wall Mode: Off</button>
-				</div>
-				<div class="control-item">
-					<button id="clearAllBtn">Clear All</button>
-				</div>
-			</div>
-		</div>
-		
-		<div class="control-group">
-			<h3 class="collapsible-header">Grid Snapping (Wall Mode) <span class="toggle-arrow">▶</span></h3>
-			<div class="control-content">
-				<div class="control-item">
-					<button id="snapGridBtn">Snap Grid: On</button>
-				</div>
-				<div class="control-item grid-input-group">
-					Snap Size (px): 
-					<input type="number" id="gridSizeInput" value="50" step="10" min="10" max="200">
-				</div>
-				<div class="control-item">
-					<button id="showGridBtn">Show Grid: Off</button>
-				</div>
-			</div>
-		</div>
-
-		<div class="control-group">
-			<h3 class="collapsible-header">Global Physics <span class="toggle-arrow">▶</span></h3>
-			<div class="control-content">
-				<div class="control-item">
-					<button id="gravityBtn">Gravity: On</button>
-					<div class="gravity-input-group">
-						Manual: 
-						<input type="number" id="gravityCustomInput" value="50" step="1" min="-200" max="200">
-						%
-						<button id="applyGravityBtn">Apply</button>
-					</div>
-					<div>
-						Strength (xG): <input type="range" id="gravitySlider" min="-2.0" max="2.0" step="0.01" value="0.5">
-						<span id="gravityValue">0.50</span>
-					</div>
-				</div>
-				<div class="control-item">
-					<button id="resistanceBtn">Resistance: On</button>
-				</div>
-			</div>
-		</div>
-
-		<div class="control-group">
-			<h3 class="collapsible-header">Boundary Walls <span class="toggle-arrow">▶</span></h3>
-			<div class="control-content">
-				<div class="control-item">
-					<button id="wallTopBtn">Top Wall: On</button>
-					<button id="wallBottomBtn">Bottom Wall: On</button>
-				</div>
-				<div class="control-item">
-					<button id="wallLeftBtn">Left Wall: On</button>
-					<button id="wallRightBtn">Right Wall: On</button>
-				</div>
-			</div>
-		</div>
-
-		<div class="control-group">
-			<h3 class="collapsible-header">Display Options <span class="toggle-arrow">▶</span></h3>
-			<div class="control-content">
-				<div class="control-item">
-					<button id="velocityBtn">Show Velocity: Off</button>
-				</div>
-				<div class="control-item">
-					<button id="massLabelBtn">Show Mass: On</button>
-				</div>
-			</div>
-		</div>
         
-        <div id="update-board" class="control-group">
-            <h3 class="collapsible-header">Update Board (v6.6) <span class="toggle-arrow">▶</span></h3>
-			<div class="control-content">
-				<p>Recent Additions:</p>
-				<ul>
-					<li>**v6.6:** Fixed arrow rotation and made the **Controls button follow the panel edge**.</li>
-					<li>**v6.5:** Added **Collapsible Sections** with toggle arrows to the side panel.</li>
-					<li>**v6.4:** Added **Save/Export** and **Load/Import** features using JSON.</li>
-				</ul>
-			</div>
+        /* Feedback/Info Section */
+        .feedback-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            font-size: 14px;
+        }
+
+    </style>
+</head>
+<body class="dark-theme">
+    <div id="info-text">
+        **Physics Circles Playground**<br>
+        Click to add circles.<br>
+        Right-click an element to edit its properties.<br>
+        Drag balls to move. Double-click to connect.<br>
+        Hover over an element and press **'D'** to delete it.
+    </div>
+    <button id="toggle-btn">Controls ▶</button>
+    
+    <div id="controls-panel">
+        
+        <div class="control-group">
+            <h3 class="collapsible-header">Display & Theme <span class="toggle-arrow">▶</span></h3>
+            <div class="control-content">
+                <div class="control-item">
+                    <button id="themeToggleBtn">Theme: Dark 🌙</button>
+                </div>
+                <div class="control-item">
+                    <button id="velocityBtn">Show Velocity: Off</button>
+                </div>
+                <div class="control-item">
+                    <button id="massLabelBtn">Show Mass: On</button>
+                </div>
+            </div>
         </div>
+        
+        <div class="control-group">
+            <h3 class="collapsible-header">Simulation Controls <span class="toggle-arrow">▶</span></h3>
+            <div class="control-content">
+                <div class="control-item">
+                    <button id="pauseBtn">Pause: Off</button>
+                    <button id="helpBtn">How to Play 💡</button>
+                </div>
+                <div class="control-item">
+                    <button id="saveBtn">Save/Export 💾</button>
+                    <button id="loadBtn">Load/Import 📤</button>
+                </div>
+                <div class="control-item">
+                    <button id="deleteModeBtn">Single-Click Delete: Off</button>
+                </div>
+                <div class="control-item">
+                    <button id="wallModeBtn">Wall Mode: Off</button>
+                </div>
+                <div class="control-item">
+                    <button id="clearAllBtn" style="background: #c00;">Clear All</button>
+                </div>
+            </div>
         </div>
 
-	<canvas id="canvas"></canvas>
+        <div class="control-group">
+            <h3 class="collapsible-header">Feedback <span class="toggle-arrow">▶</span></h3>
+            <div class="control-content" id="feedback-content">
+                <div class="feedback-item"><span>FPS:</span> <span id="fpsValue">0</span></div>
+                <div class="feedback-item"><span>Balls:</span> <span id="ballCount">0</span></div>
+                <div class="feedback-item"><span>Springs:</span> <span id="springCount">0</span></div>
+                <div class="feedback-item"><span>Custom Walls:</span> <span id="wallCount">0</span></div>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h3 class="collapsible-header">Global Physics <span class="toggle-arrow">▶</span></h3>
+            <div class="control-content">
+                <div class="control-item">
+                    <button id="gravityBtn">Gravity: On</button>
+                    <div class="gravity-input-group">
+                        Manual: 
+                        <input type="number" id="gravityCustomInput" value="50" step="1" min="-200" max="200">
+                        %
+                        <button id="applyGravityBtn">Apply</button>
+                    </div>
+                    <div>
+                        Strength (xG): <input type="range" id="gravitySlider" min="-2.0" max="2.0" step="0.01" value="0.5">
+                        <span id="gravityValue">0.50</span>
+                    </div>
+                </div>
+                <div class="control-item">
+                    <button id="resistanceBtn">Resistance: On</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3 class="collapsible-header">Boundary Walls <span class="toggle-arrow">▶</span></h3>
+            <div class="control-content">
+                <div class="control-item">
+                    <button id="wallTopBtn">Top Wall: On</button>
+                    <button id="wallBottomBtn">Bottom Wall: On</button>
+                </div>
+                <div class="control-item">
+                    <button id="wallLeftBtn">Left Wall: On</button>
+                    <button id="wallRightBtn">Right Wall: On</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3 class="collapsible-header">Grid Snapping (Wall Mode) <span class="toggle-arrow">▶</span></h3>
+            <div class="control-content">
+                <div class="control-item">
+                    <button id="snapGridBtn">Snap Grid: On</button>
+                </div>
+                <div class="control-item grid-input-group">
+                    Snap Size (px): 
+                    <input type="number" id="gridSizeInput" value="50" step="10" min="10" max="200">
+                </div>
+                <div class="control-item">
+                    <button id="showGridBtn">Show Grid: Off</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="update-board" class="control-group collapsed">
+            <h3 class="collapsible-header">Update Board (v6.8) <span class="toggle-arrow">▶</span></h3>
+            <div class="control-content">
+                <p>Recent Fixes/Additions:</p>
+                <ul>
+                    <li>**v6.8:** Fixed issue preventing **new balls from spawning** on an empty canvas click.</li>
+                    <li>**v6.7:** Added **Theme Toggle (Dark/Light)** and **Live Feedback**.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
 
     <div id="help-modal" class="modal">
         <div class="modal-content">
-            <button class="modal-close-btn" data-modal="help-modal">Close X</button>
+            <button class="modal-close-btn" data-modal="help-modal" style="background: #c00;">Close X</button>
             <h2>How to Play 💡</h2>
             
             <h3>On the Canvas (Mouse)</h3>
@@ -360,7 +346,7 @@
 
             <h3>Special Modes & Keys</h3>
             <ul>
-                <li>**Wall Mode (Control Panel):** Click and drag on the canvas to draw a permanent wall segment. **Corner Snapping** and **Grid Snapping** apply here.</li>
+                <li>**Wall Mode (Control Panel):** Click and drag on the canvas to draw a permanent wall segment. Corner/Grid Snapping apply.</li>
                 <li>**Press 'D':** Hover over a ball, spring, or wall and press **'D'** to delete it instantly.</li>
                 <li>**Single-Click Delete Mode:** Turn this on in the panel to delete elements with a single left click.</li>
             </ul>
@@ -368,18 +354,18 @@
     </div>
     <div id="save-modal" class="modal">
         <div class="modal-content">
-            <button class="modal-close-btn" data-modal="save-modal">Close X</button>
+            <button class="modal-close-btn" data-modal="save-modal" style="background: #c00;">Close X</button>
             <h2>Save / Export Data 💾</h2>
-            <p>Copy the JSON data below to save your current simulation state. You can paste it into the Load/Import feature later.</p>
+            <p>Copy the JSON data below to save your current simulation state.</p>
             <textarea id="saveDataTextarea" readonly></textarea>
             <div class="modal-actions">
-                <button id="copySaveDataBtn">Copy Data</button>
+                <button id="copySaveDataBtn" style="background: #4af;">Copy Data</button>
             </div>
         </div>
     </div>
     <div id="load-modal" class="modal">
         <div class="modal-content">
-            <button class="modal-close-btn" data-modal="load-modal">Close X</button>
+            <button class="modal-close-btn" data-modal="load-modal" style="background: #c00;">Close X</button>
             <h2>Load / Import Data 📤</h2>
             <p>Paste your saved JSON data here to load the simulation.</p>
             <textarea id="loadDataTextarea"></textarea>
@@ -389,1214 +375,819 @@
         </div>
     </div>
     <script>
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+        // --- Core Variables ---
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-const BASE_GRAVITY_UNIT = 0.5; 
-let GRAVITY = BASE_GRAVITY_UNIT; 
-let gravityOn = true;
-let showVelocity = false;
-let FRICTION = 0.99;
-let resistanceOn = true;
-const RADIUS = 20; 
-const SPRING_STRENGTH = 0.01; 
-const SPRING_LENGTH = 100;
-const WALL_THICKNESS = 5;
-const CORNER_SNAP_DISTANCE = 20; 
+        const BASE_GRAVITY_UNIT = 0.5; 
+        let GRAVITY = BASE_GRAVITY_UNIT * 0.5; 
+        let gravityOn = true;
+        let showVelocity = false;
+        let FRICTION = 0.99;
+        let resistanceOn = true;
+        const RADIUS = 20; 
+        const SPRING_STRENGTH = 0.01; 
+        const SPRING_LENGTH = 100;
+        const WALL_THICKNESS = 5;
+        const CORNER_SNAP_DISTANCE = 20; 
 
-// Grid control state
-let snapGrid = true;
-let gridSize = 50; 
-let showGrid = false;
+        let snapGrid = true;
+        let gridSize = 50; 
+        let showGrid = false;
+        let theme = 'dark';
 
-// Wall control state
-let wallTopOn = true;
-let wallBottomOn = true;
-let wallLeftOn = true;
-let wallRightOn = true;
+        let wallTopOn = true;
+        let wallBottomOn = true;
+        let wallLeftOn = true;
+        let wallRightOn = true;
 
-
-let circles = [];
-let springs = [];
-let walls = [];
-let draggingBall = null;
-let dragOffset = {x:0, y:0};
-let dragHistory = []; 
-let selectedBall = null;
-let connectMode = false;
-let selectedSpring = null;
-let deleteMode = false; 
-let showMassLabel = true;
-let paused = false;
-let hoveredElement = null;
-let wallMode = false;
-let currentDrawingWall = null;
-
-
-// ====================================================================
-// --- Utility Functions (Snapping) ---
-// ====================================================================
-
-function snapToGrid(coord) {
-    if (!snapGrid || gridSize === 0) return coord;
-    return Math.round(coord / gridSize) * gridSize;
-}
-
-function getSnapStartPoint(x, y) {
-    let snapX = snapToGrid(x);
-    let snapY = snapToGrid(y);
-
-    // 1. Check for Corner Snapping (Higher Priority)
-    for (const wall of walls) {
-        // Check start point of existing wall
-        if (Math.hypot(x - wall.x1, y - wall.y1) < CORNER_SNAP_DISTANCE) {
-            return { x: wall.x1, y: wall.y1, snapped: true };
-        }
-        // Check end point of existing wall
-        if (Math.hypot(x - wall.x2, y - wall.y2) < CORNER_SNAP_DISTANCE) {
-            return { x: wall.x2, y: wall.y2, snapped: true };
-        }
-    }
-
-    // 2. Grid Snapping
-    return { x: snapX, y: snapY, snapped: snapGrid };
-}
-
-function getSnapEndPoint(x, y) {
-    return { x: snapToGrid(x), y: snapToGrid(y) };
-}
-
-
-// ====================================================================
-// --- Utility Functions (Hover and Delete) ---
-// ====================================================================
-
-function getHoveredElement(x, y) {
-	let foundBall = circles.find(c => Math.hypot(c.x-x, c.y-y) < c.radius);
-	if (foundBall) return foundBall;
-
-	let foundSpring = springs.find(s => {
-		let ax = s.a.x, ay = s.a.y, bx = s.b.x, by = s.b.y;
-		let dx = bx - ax, dy = by - ay;
-		let t = ((x-ax)*dx + (y-ay)*dy) / (dx*dx + dy*dy);
-		t = Math.max(0, Math.min(1, t));
-		let px = ax + t*dx, py = ay + t*dy;
-		return Math.hypot(px-x, py-y) < 10;
-	});
-	if (foundSpring) return foundSpring;
-
-	let foundWall = walls.find(w => {
-		const { x1, y1, x2, y2 } = w;
-		const dx = x2 - x1;
-		const dy = y2 - y1;
-		const wallLengthSq = dx * dx + dy * dy;
-		
-		const t = ((x - x1) * dx + (y - y1) * dy) / (wallLengthSq || 1); // Avoid division by zero
-		const closestT = Math.max(0, Math.min(1, t));
-		const closestX = x1 + closestT * dx;
-		const closestY = y1 + closestT * dy;
-		return Math.hypot(x - closestX, y - closestY) < WALL_THICKNESS + 5;
-	});
-	if (foundWall) return foundWall;
-
-	return null;
-}
-
-function deleteElement(element) {
-	if (element instanceof Circle) {
-		springs = springs.filter(s => s.a !== element && s.b !== element);
-		circles = circles.filter(c => c !== element);
-		if (selectedBall === element) selectedBall = null;
-		if (draggingBall === element) draggingBall = null;
-	} else if (element instanceof Spring) {
-		springs = springs.filter(s => s !== element);
-		if (selectedSpring === element) selectedSpring = null;
-	} else if (element instanceof Wall) {
-		walls = walls.filter(w => w !== element);
-	}
-	// Close any open editors for the deleted element
-	if (window.ballEditor) window.ballEditor.remove();
-	if (window.springEditor) window.springEditor.remove();
-	if (window.wallEditor) window.wallEditor.remove();
-	if (hoveredElement === element) hoveredElement = null;
-}
-
-
-// ====================================================================
-// --- Class Definitions ---
-// ====================================================================
-
-class Circle {
-	constructor(x, y) {
-		this.x = x;
-		this.y = y;
-		this.vx = 0;
-		this.vy = 0;
-		this.mass = 1; 
-		this.isDragged = false;
-		this.locked = false; 
-		this.tx = x; 
-		this.ty = y;
-		this.color = '#4af'; 
-		this.label = ''; 
-        // Used for serialization: maps spring indices to the circle
-        this.springIndices = []; 
-	}
-	get radius() {
-		return RADIUS + (this.mass - 1) * 8;
-	}
-	draw() {
-		ctx.beginPath();
-		ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-		
-		let fillStyle = (selectedBall === this) ? '#ff0' : (this.locked ? '#888' : this.color);
-		
-		if (hoveredElement === this) {
-			ctx.shadowBlur = 15;
-			ctx.shadowColor = 'red';
-		}
-		
-		ctx.fillStyle = fillStyle;
-		ctx.fill();
-		ctx.shadowBlur = 0;
-		ctx.strokeStyle = '#fff';
-		ctx.lineWidth = 2;
-		ctx.stroke();
-		
-		// 1. Draw Custom Label (Name)
-		if (this.label) {
-			ctx.font = '14px sans-serif';
-			ctx.fillStyle = '#fff';
-			ctx.textAlign = 'center';
-			ctx.fillText(this.label, this.x, this.y - this.radius - (showMassLabel ? 25 : 10)); 
-		}
-
-		// 2. Draw Mass Label
-		if (showMassLabel) {
-			ctx.font = '12px sans-serif';
-			ctx.fillStyle = '#fff';
-			ctx.textAlign = 'center';
-			ctx.fillText('m=' + this.mass.toFixed(2), this.x, this.y - this.radius - 10);
-		}
-		
-		
-		if (showVelocity) {
-			let speed = Math.hypot(this.vx, this.vy);
-			ctx.font = '14px sans-serif';
-			ctx.fillStyle = '#0ff'; 
-			ctx.textAlign = 'left';
-			ctx.fillText('v=' + speed.toFixed(2), this.x + this.radius + 8, this.y + 5);
-		}
-	}
-	update() {
-		if (this.locked) {
-			this.vx = 0;
-			this.vy = 0;
-			return;
-		}
-
-		if (this.isDragged) {
-			this.vx = (this.x - this.tx); 
-			this.vy = (this.y - this.ty);
-			this.tx = this.x;
-			this.ty = this.y;
-			return;
-		}
-
-		this.tx = this.x;
-		this.ty = this.y;
-		
-		// Gravity force applied, scaled by mass. Negative gravity works here too.
-		if (gravityOn) {
-			this.vy += GRAVITY * this.mass; 
-		}
-
-		
-		if (resistanceOn) {
-			this.vx *= FRICTION;
-			this.vy *= FRICTION;
-		}
-		this.x += this.vx;
-		this.y += this.vy;
-		
-		const restitution = 0.7;
-
-		// --- Boundary Collision Logic ---
-		
-		// Left Wall
-		if (wallLeftOn && this.x < this.radius) { 
-			this.x = this.radius; 
-			this.vx *= -restitution; 
-		}
-		// Right Wall
-		if (wallRightOn && this.x > canvas.width - this.radius) { 
-			this.x = canvas.width - this.radius; 
-			this.vx *= -restitution; 
-		}
-		// Top Wall
-		if (wallTopOn && this.y < this.radius) { 
-			this.y = this.radius; 
-			this.vy *= -restitution; 
-		}
-		// Bottom Wall
-		if (wallBottomOn && this.y > canvas.height - this.radius) { 
-			this.y = canvas.height - this.radius; 
-			this.vy *= -restitution; 
-		}
-	}
-
-    // Custom serializer to save only necessary state
-    toJSON() {
-        return {
-            x: this.x, y: this.y,
-            vx: this.vx, vy: this.vy,
-            mass: this.mass,
-            locked: this.locked,
-            color: this.color,
-            label: this.label
-        };
-    }
-}
-
-class Spring {
-	constructor(a, b) {
-		this.a = a;
-		this.b = b;
-		this.length = SPRING_LENGTH;
-		this.strength = SPRING_STRENGTH;
-		this.selected = false;
-	}
-	draw() {
-		ctx.beginPath();
-		ctx.moveTo(this.a.x, this.a.y);
-		ctx.lineTo(this.b.x, this.b.y);
-		
-		let strokeStyle = this.selected ? '#0f0' : '#fa4';
-		let lineWidth = this.selected ? 5 : 3;
-		
-		if (hoveredElement === this) {
-			strokeStyle = 'red';
-			lineWidth = 5;
-		}
-
-		ctx.strokeStyle = strokeStyle;
-		ctx.lineWidth = lineWidth;
-		ctx.stroke();
-	}
-	update() {
-		let dx = this.b.x - this.a.x;
-		let dy = this.b.y - this.a.y;
-		let dist = Math.hypot(dx, dy);
-		let force = (dist - this.length) * this.strength; 
-		let fx = (dx / dist) * force;
-		let fy = (dy / dist) * force;
-		
-		// Divide the spring force by the ball's mass (F = ma, so a = F/m).
-		if (!this.a.locked) {
-			this.a.vx += fx / this.a.mass; 
-			this.a.vy += fy / this.a.mass;
-		}
-		if (!this.b.locked) {
-			this.b.vx -= fx / this.b.mass; 
-			this.b.vy -= fy / this.b.mass;
-		}
-	}
-
-    // Custom serializer to save endpoints by their index in the global circles array
-    toJSON() {
-        const aIndex = circles.indexOf(this.a);
-        const bIndex = circles.indexOf(this.b);
-        return {
-            aIndex: aIndex,
-            bIndex: bIndex,
-            length: this.length,
-            strength: this.strength
-        };
-    }
-}
-
-class Wall {
-	constructor(x1, y1, x2, y2) {
-		this.x1 = x1;
-		this.y1 = y1;
-		this.x2 = x2;
-		this.y2 = y2;
-		this.color = '#fff';
-		this.restitution = 0.8; 
-		this.friction = 0.95; 
-	}
-	draw() {
-		ctx.beginPath();
-		ctx.moveTo(this.x1, this.y1);
-		ctx.lineTo(this.x2, this.y2);
-		ctx.strokeStyle = this.color;
-		ctx.lineWidth = WALL_THICKNESS;
-		if (hoveredElement === this) {
-			ctx.shadowBlur = 15;
-			ctx.shadowColor = 'red';
-		}
-		ctx.stroke();
-		ctx.shadowBlur = 0;
-	}
-
-    // Custom serializer
-    toJSON() {
-        return {
-            x1: this.x1, y1: this.y1,
-            x2: this.x2, y2: this.y2,
-            color: this.color,
-            restitution: this.restitution,
-            friction: this.friction
-        };
-    }
-}
-
-
-// ====================================================================
-// --- Core Simulation Loop & Drawing ---
-// ====================================================================
-
-function drawGrid() {
-    if (!showGrid || gridSize === 0) return;
-    
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.lineWidth = 1;
-    
-    // Vertical lines
-    for (let x = 0; x <= canvas.width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-    }
-    
-    // Horizontal lines
-    for (let y = 0; y <= canvas.height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-    }
-}
-
-function draw() {
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	drawGrid();
-	for (let spring of springs) spring.draw();
-	for (let wall of walls) wall.draw();
-	for (let circle of circles) circle.draw();
-
-	if (currentDrawingWall) {
-		ctx.beginPath();
-		ctx.moveTo(currentDrawingWall.x1, currentDrawingWall.y1);
-		ctx.lineTo(currentDrawingWall.x2, currentDrawingWall.y2);
-		ctx.strokeStyle = currentDrawingWall.color;
-		ctx.lineWidth = WALL_THICKNESS;
-		ctx.setLineDash([10, 5]);
-		ctx.stroke();
-		ctx.setLineDash([]);
-	}
-	
-	if (showVelocity) {
-		for (let circle of circles) {
-			let vx = circle.vx, vy = circle.vy;
-			let speed = Math.hypot(vx, vy);
-			if (speed > 0.5) {
-				let arrowLen = Math.min(40, speed*8);
-				let angle = Math.atan2(vy, vx);
-				let x1 = circle.x, y1 = circle.y;
-				let x2 = x1 + Math.cos(angle)*arrowLen;
-				let y2 = y1 + Math.sin(angle)*arrowLen;
-				ctx.beginPath();
-				ctx.moveTo(x1, y1);
-				ctx.lineTo(x2, y2);
-				ctx.strokeStyle = '#0ff';
-				ctx.lineWidth = 2;
-				ctx.stroke();
-			}
-		}
-	}
-
-	if (connectMode && selectedBall) {
-		ctx.beginPath();
-		ctx.arc(selectedBall.x, selectedBall.y, selectedBall.radius+6, 0, Math.PI*2);
-		ctx.strokeStyle = '#ff0';
-		ctx.setLineDash([5,5]);
-		ctx.stroke();
-		ctx.setLineDash([]);
-	}
-}
-
-function update() {
-	if (paused) return;
-	
-	for (let spring of springs) spring.update();
-	for (let circle of circles) circle.update();
-	
-	// Circle-Circle Collision (omitted for brevity, assume it's still here)
-    for (let i = 0; i < circles.length; i++) {
-		for (let j = i+1; j < circles.length; j++) {
-			let a = circles[i], b = circles[j];
-			
-			const aIsLocked = a.locked;
-			const bIsLocked = b.locked;
-			if (aIsLocked && bIsLocked) continue;
-
-			let dx = b.x - a.x, dy = b.y - a.y;
-			let dist = Math.hypot(dx, dy);
-			let minDist = a.radius + b.radius;
-			
-			if (dist < minDist) {
-				let angle = Math.atan2(dy, dx);
-				let overlap = minDist - dist;
-				
-				if (aIsLocked) {
-					b.x += Math.cos(angle) * overlap;
-					b.y += Math.sin(angle) * overlap;
-				} else if (bIsLocked) {
-					a.x -= Math.cos(angle) * overlap;
-					a.y -= Math.sin(angle) * overlap;
-				} else {
-					let totalMass = a.mass + b.mass;
-					let ratioA = b.mass / totalMass;
-					let ratioB = a.mass / totalMass;
-					
-					a.x -= Math.cos(angle) * overlap * ratioA;
-					a.y -= Math.sin(angle) * overlap * ratioA;
-					b.x += Math.cos(angle) * overlap * ratioB;
-					b.y += Math.sin(angle) * overlap * ratioB;
-				}
-				
-				let v1 = a.vx * Math.cos(angle) + a.vy * Math.sin(angle);
-				let v2 = b.vx * Math.cos(angle) + b.vy * Math.sin(angle);
-				
-				let m1 = aIsLocked ? 99999999 : a.mass; 
-				let m2 = bIsLocked ? 99999999 : b.mass;
-				let totalMomentumMass = m1 + m2;
-				
-				let v1f = (v1 * (m1 - m2) + 2 * m2 * v2) / totalMomentumMass;
-				let v2f = (v2 * (m2 - m1) + 2 * m1 * v1) / totalMomentumMass;
-				
-				let dv1 = v1f - v1;
-				let dv2 = v2f - v2;
-				
-				if (!aIsLocked) {
-					a.vx += dv1 * Math.cos(angle);
-					a.vy += dv1 * Math.sin(angle);
-					a.vx *= 0.95; a.vy *= 0.95;
-				}
-				if (!bIsLocked) {
-					b.vx += dv2 * Math.cos(angle);
-					b.vy += dv2 * Math.sin(angle);
-					b.vx *= 0.95; b.vy *= 0.95;
-				}
-			}
-		}
-	}
-	
-	// Circle-Wall Collision (omitted for brevity, assume it's still here)
-    for (let circle of circles) {
-		for (let wall of walls) {
-			const { x1, y1, x2, y2 } = wall;
-			const dx = x2 - x1;
-			const dy = y2 - y1;
-			const wallLengthSq = dx * dx + dy * dy;
-			
-			let t = 0;
-			if (wallLengthSq !== 0) {
-				t = ((circle.x - x1) * dx + (circle.y - y1) * dy) / wallLengthSq;
-				t = Math.max(0, Math.min(1, t));
-			}
-
-			const closestX = x1 + t * dx;
-			const closestY = y1 + t * dy;
-
-			const distSq = Math.pow(circle.x - closestX, 2) + Math.pow(circle.y - closestY, 2);
-			const radiusSq = Math.pow(circle.radius, 2);
-
-			if (distSq < radiusSq) {
-				const dist = Math.sqrt(distSq);
-				const overlap = circle.radius - dist;
-				const nx = (circle.x - closestX) / dist;
-				const ny = (circle.y - closestY) / dist;
-				
-				if (!circle.locked) {
-					circle.x += nx * overlap;
-					circle.y += ny * overlap;
-				}
-
-				const dotProduct = circle.vx * nx + circle.vy * ny;
-				const tangentVx = circle.vx - dotProduct * nx;
-				const tangentVy = circle.vy - dotProduct * ny;
-				
-				// Apply friction to the tangent velocity component
-				const newTangentVx = tangentVx * wall.friction;
-				const newTangentVy = tangentVy * wall.friction;
-
-				// Reflect the normal velocity component with restitution
-				const newNormalVx = (circle.vx - tangentVx) * -wall.restitution;
-				const newNormalVy = (circle.vy - tangentVy) * -wall.restitution;
-				
-				// Combine and update velocities
-				circle.vx = newNormalVx + newTangentVx;
-				circle.vy = newNormalVy + newTangentVy;
-			}
-		}
-	}
-}
-
-function loop() {
-	update();
-	draw();
-	requestAnimationFrame(loop);
-}
-
-
-// ====================================================================
-// --- Serialization / Deserialization Logic ---
-// ====================================================================
-
-function saveSimulation() {
-    const data = {
-        meta: {
-            version: '6.6', // Updated version number
-            timestamp: new Date().toISOString()
-        },
-        physics: {
-            gravity: GRAVITY,
-            gravityOn: gravityOn,
-            resistanceOn: resistanceOn
-        },
-        display: {
-            showVelocity: showVelocity,
-            showMassLabel: showMassLabel
-        },
-        circles: circles,
-        springs: springs,
-        walls: walls
-    };
-    
-    // JSON.stringify will automatically call the toJSON methods on the objects
-    return JSON.stringify(data, null, 2); 
-}
-
-function loadSimulation(jsonString) {
-    try {
-        const data = JSON.parse(jsonString);
+        let circles = [];
+        let springs = [];
+        let walls = [];
+        let draggingBall = null;
+        let dragOffset = {x:0, y:0};
+        let dragHistory = []; 
+        let selectedBall = null;
+        let connectMode = false;
+        let selectedSpring = null;
+        let deleteMode = false; 
+        let showMassLabel = true;
+        let paused = false;
+        let hoveredElement = null;
+        let wallMode = false;
+        let currentDrawingWall = null;
         
-        // --- 1. Reset Global State ---
-        circles = [];
-        springs = [];
-        walls = [];
-        selectedBall = null;
-        connectMode = false;
-        if (window.ballEditor) window.ballEditor.remove();
-	    if (window.springEditor) window.springEditor.remove();
-	    if (window.wallEditor) window.wallEditor.remove();
+        let lastFrameTime = performance.now();
+        let fps = 0;
 
-        // --- 2. Load Global Physics/Display Settings ---
-        if (data.physics) {
-            GRAVITY = data.physics.gravity || BASE_GRAVITY_UNIT;
-            gravityOn = data.physics.gravityOn !== undefined ? data.physics.gravityOn : true;
-            resistanceOn = data.physics.resistanceOn !== undefined ? data.physics.resistanceOn : true;
-            updateGravity(GRAVITY); // Update controls
-            document.getElementById('gravityBtn').textContent = 'Gravity: ' + (gravityOn ? 'On' : 'Off');
-            document.getElementById('resistanceBtn').textContent = 'Resistance: ' + (resistanceOn ? 'On' : 'Off');
-            FRICTION = resistanceOn ? 0.99 : 1.0;
-        }
-        if (data.display) {
-            showVelocity = data.display.showVelocity || false;
-            showMassLabel = data.display.showMassLabel !== undefined ? data.display.showMassLabel : true;
-            document.getElementById('velocityBtn').textContent = 'Show Velocity: ' + (showVelocity ? 'On' : 'Off');
-            document.getElementById('massLabelBtn').textContent = 'Show Mass: ' + (showMassLabel ? 'On' : 'Off');
+        // --- Utility Functions ---
+        
+        function snapToGrid(coord) {
+            if (!snapGrid || gridSize === 0) return coord;
+            return Math.round(coord / gridSize) * gridSize;
         }
 
-        // --- 3. Load Circles ---
-        for (const cData of data.circles) {
-            const circle = new Circle(cData.x, cData.y);
-            circle.vx = cData.vx || 0;
-            circle.vy = cData.vy || 0;
-            circle.mass = cData.mass || 1;
-            circle.locked = cData.locked || false;
-            circle.color = cData.color || '#4af';
-            circle.label = cData.label || '';
-            // Reset temp properties
-            circle.tx = cData.x;
-            circle.ty = cData.y;
+        function getSnapStartPoint(x, y) {
+            let snapX = snapToGrid(x);
+            let snapY = snapToGrid(y);
 
-            circles.push(circle);
+            for (const wall of walls) {
+                if (Math.hypot(x - wall.x1, y - wall.y1) < CORNER_SNAP_DISTANCE) {
+                    return { x: wall.x1, y: wall.y1, snapped: true };
+                }
+                if (Math.hypot(x - wall.x2, y - wall.y2) < CORNER_SNAP_DISTANCE) {
+                    return { x: wall.x2, y: wall.y2, snapped: true };
+                }
+            }
+            return { x: snapX, y: snapY, snapped: snapGrid };
         }
 
-        // --- 4. Load Springs (Connecting to loaded circles) ---
-        for (const sData of data.springs) {
-            const a = circles[sData.aIndex];
-            const b = circles[sData.bIndex];
-            if (a && b) {
-                const spring = new Spring(a, b);
-                spring.length = sData.length || SPRING_LENGTH;
-                spring.strength = sData.strength || SPRING_STRENGTH;
-                springs.push(spring);
-            } else {
-                console.warn(`Skipping spring due to missing ball at index ${sData.aIndex} or ${sData.bIndex}`);
+        function getSnapEndPoint(x, y) {
+            return { x: snapToGrid(x), y: snapToGrid(y) };
+        }
+
+        function getHoveredElement(x, y) {
+            let foundBall = circles.find(c => Math.hypot(c.x-x, c.y-y) < c.radius);
+            if (foundBall) return foundBall;
+
+            let foundSpring = springs.find(s => {
+                let ax = s.a.x, ay = s.a.y, bx = s.b.x, by = s.b.y;
+                let dx = bx - ax, dy = by - ay;
+                let t = ((x-ax)*dx + (y-ay)*dy) / (dx*dx + dy*dy);
+                t = Math.max(0, Math.min(1, t));
+                let px = ax + t*dx, py = ay + t*dy;
+                return Math.hypot(px-x, py-y) < 10;
+            });
+            if (foundSpring) return foundSpring;
+
+            let foundWall = walls.find(w => {
+                const { x1, y1, x2, y2 } = w;
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const wallLengthSq = dx * dx + dy * dy;
+                
+                const t = ((x - x1) * dx + (y - y1) * dy) / (wallLengthSq || 1); 
+                const closestT = Math.max(0, Math.min(1, t));
+                const closestX = x1 + closestT * dx;
+                const closestY = y1 + closestT * dy;
+                return Math.hypot(x - closestX, y - closestY) < WALL_THICKNESS + 5;
+            });
+            if (foundWall) return foundWall;
+
+            return null;
+        }
+
+        function deleteElement(element) {
+            if (element instanceof Circle) {
+                springs = springs.filter(s => s.a !== element && s.b !== element);
+                circles = circles.filter(c => c !== element);
+                if (selectedBall === element) selectedBall = null;
+                if (draggingBall === element) draggingBall = null;
+            } else if (element instanceof Spring) {
+                springs = springs.filter(s => s !== element);
+                if (selectedSpring === element) selectedSpring = null;
+            } else if (element instanceof Wall) {
+                walls = walls.filter(w => w !== element);
+            }
+            if (window.ballEditor) window.ballEditor.remove();
+            if (window.springEditor) window.springEditor.remove();
+            if (window.wallEditor) window.wallEditor.remove();
+            if (hoveredElement === element) hoveredElement = null;
+        }
+
+
+        // --- Class Definitions (Same as before) ---
+        
+        class Circle {
+            constructor(x, y) {
+                this.x = x; this.y = y; this.vx = 0; this.vy = 0; this.mass = 1; 
+                this.isDragged = false; this.locked = false; this.tx = x; this.ty = y;
+                this.color = '#4af'; this.label = ''; 
+            }
+            get radius() { return RADIUS + (this.mass - 1) * 8; }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                let fillStyle = (selectedBall === this) ? '#ff0' : (this.locked ? '#888' : this.color);
+                if (hoveredElement === this) { ctx.shadowBlur = 15; ctx.shadowColor = 'red'; }
+                ctx.fillStyle = fillStyle;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = theme === 'dark' ? '#fff' : '#000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                const labelColor = theme === 'dark' ? '#fff' : '#222';
+                if (this.label) {
+                    ctx.font = '14px sans-serif'; ctx.fillStyle = labelColor; ctx.textAlign = 'center';
+                    ctx.fillText(this.label, this.x, this.y - this.radius - (showMassLabel ? 25 : 10)); 
+                }
+                if (showMassLabel) {
+                    ctx.font = '12px sans-serif'; ctx.fillStyle = labelColor; ctx.textAlign = 'center';
+                    ctx.fillText('m=' + this.mass.toFixed(2), this.x, this.y - this.radius - 10);
+                }
+            }
+            update() {
+                if (this.locked) { this.vx = 0; this.vy = 0; return; }
+                if (this.isDragged) {
+                    this.vx = (this.x - this.tx); this.vy = (this.y - this.ty);
+                    this.tx = this.x; this.ty = this.y; return;
+                }
+                this.tx = this.x; this.ty = this.y;
+                if (gravityOn) { this.vy += GRAVITY * this.mass; }
+                if (resistanceOn) { this.vx *= FRICTION; this.vy *= FRICTION; }
+                this.x += this.vx; this.y += this.vy;
+                const restitution = 0.7;
+                if (wallLeftOn && this.x < this.radius) { this.x = this.radius; this.vx *= -restitution; }
+                if (wallRightOn && this.x > canvas.width - this.radius) { this.x = canvas.width - this.radius; this.vx *= -restitution; }
+                if (wallTopOn && this.y < this.radius) { this.y = this.radius; this.vy *= -restitution; }
+                if (wallBottomOn && this.y > canvas.height - this.radius) { this.y = canvas.height - this.radius; this.vy *= -restitution; }
+            }
+            toJSON() { return { x: this.x, y: this.y, vx: this.vx, vy: this.vy, mass: this.mass, locked: this.locked, color: this.color, label: this.label }; }
+        }
+
+        class Spring {
+            constructor(a, b) {
+                this.a = a; this.b = b; this.length = SPRING_LENGTH; this.strength = SPRING_STRENGTH; this.selected = false;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.a.x, this.a.y);
+                ctx.lineTo(this.b.x, this.b.y);
+                let strokeStyle = this.selected ? '#0f0' : '#fa4';
+                let lineWidth = this.selected ? 5 : 3;
+                if (hoveredElement === this) { strokeStyle = 'red'; lineWidth = 5; }
+                ctx.strokeStyle = strokeStyle;
+                ctx.lineWidth = lineWidth;
+                ctx.stroke();
+            }
+            update() {
+                let dx = this.b.x - this.a.x;
+                let dy = this.b.y - this.a.y;
+                let dist = Math.hypot(dx, dy);
+                let force = (dist - this.length) * this.strength; 
+                let fx = (dx / dist) * force;
+                let fy = (dy / dist) * force;
+                if (!this.a.locked) { this.a.vx += fx / this.a.mass; this.a.vy += fy / this.a.mass; }
+                if (!this.b.locked) { this.b.vx -= fx / this.b.mass; this.b.vy -= fy / this.b.mass; }
+            }
+            toJSON() {
+                const aIndex = circles.indexOf(this.a);
+                const bIndex = circles.indexOf(this.b);
+                return { aIndex: aIndex, bIndex: bIndex, length: this.length, strength: this.strength };
             }
         }
+
+        class Wall {
+            constructor(x1, y1, x2, y2) {
+                this.x1 = x1; this.y1 = y1; this.x2 = x2; this.y2 = y2;
+                this.color = '#fff';
+                this.restitution = 0.8;
+                this.friction = 0.95;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.moveTo(this.x1, this.y1);
+                ctx.lineTo(this.x2, this.y2);
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = WALL_THICKNESS;
+                if (hoveredElement === this) { ctx.shadowBlur = 15; ctx.shadowColor = 'red'; }
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            }
+            toJSON() {
+                return {
+                    x1: this.x1, y1: this.y1, x2: this.x2, y2: this.y2,
+                    color: this.color, restitution: this.restitution, friction: this.friction
+                };
+            }
+        }
+
+        // --- Core Simulation Loop & Drawing/Update/Feedback ---
         
-        // --- 5. Load Walls ---
-        for (const wData of data.walls) {
-            const wall = new Wall(wData.x1, wData.y1, wData.x2, wData.y2);
-            wall.color = wData.color || '#fff';
-            wall.restitution = wData.restitution !== undefined ? wData.restitution : 0.8;
-            wall.friction = wData.friction !== undefined ? wData.friction : 0.95;
-            walls.push(wall);
+        function drawGrid() {
+            if (!showGrid || gridSize === 0) return;
+            ctx.strokeStyle = theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= canvas.width; x += gridSize) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+            for (let y = 0; y <= canvas.height; y += gridSize) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
         }
 
-        console.log(`Simulation loaded successfully! Version: ${data.meta.version}`);
-        alert('Simulation loaded successfully!');
-        document.getElementById('load-modal').style.display = 'none';
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            for (let spring of springs) spring.draw();
+            for (let wall of walls) wall.draw();
+            for (let circle of circles) circle.draw();
 
-    } catch (error) {
-        console.error('Error loading simulation data:', error);
-        alert('Error loading simulation data. The JSON is invalid or corrupted. See console for details.');
-    }
-}
-
-
-// ====================================================================
-// --- UI / Event Handlers ---
-// ====================================================================
-
-// --- Collapsible Sections Logic ---
-document.querySelectorAll('.collapsible-header').forEach(header => {
-    header.addEventListener('click', () => {
-        const group = header.closest('.control-group');
-        group.classList.toggle('collapsed');
-        const arrow = header.querySelector('.toggle-arrow');
-        // The CSS handles the rotation based on the 'collapsed' class
-        arrow.textContent = group.classList.contains('collapsed') ? '▶' : '▼';
-    });
-	// Collapse all on load for a cleaner start
-	const group = header.closest('.control-group');
-	group.classList.add('collapsed');
-	header.querySelector('.toggle-arrow').textContent = '▶';
-});
-// Let's manually open the Simulation Controls section on load
-document.querySelector('.control-group:first-child').classList.remove('collapsed');
-document.querySelector('.control-group:first-child .toggle-arrow').textContent = '▼';
-
-
-// --- Modal Control ---
-document.querySelectorAll('.modal-close-btn').forEach(button => {
-    button.addEventListener('click', () => {
-        document.getElementById(button.dataset.modal).style.display = 'none';
-    });
-});
-document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.style.display = 'none';
+            if (currentDrawingWall) {
+                ctx.beginPath();
+                ctx.moveTo(currentDrawingWall.x1, currentDrawingWall.y1);
+                ctx.lineTo(currentDrawingWall.x2, currentDrawingWall.y2);
+                ctx.strokeStyle = currentDrawingWall.color;
+                ctx.lineWidth = WALL_THICKNESS;
+                ctx.setLineDash([10, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            if (connectMode && selectedBall) {
+                ctx.beginPath();
+                ctx.arc(selectedBall.x, selectedBall.y, selectedBall.radius+6, 0, Math.PI*2);
+                ctx.strokeStyle = '#ff0';
+                ctx.setLineDash([5,5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
         }
-    });
-});
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-        document.getElementById('help-modal').style.display = 'none';
-        document.getElementById('save-modal').style.display = 'none';
-        document.getElementById('load-modal').style.display = 'none';
-    }
-});
 
-// --- Save/Load Buttons ---
-document.getElementById('saveBtn').onclick = function() {
-    const json = saveSimulation();
-    document.getElementById('saveDataTextarea').value = json;
-    document.getElementById('save-modal').style.display = 'flex';
-};
-document.getElementById('copySaveDataBtn').onclick = function() {
-    const textarea = document.getElementById('saveDataTextarea');
-    textarea.select();
-    document.execCommand('copy');
-    this.textContent = 'Copied!';
-    setTimeout(() => this.textContent = 'Copy Data', 1500);
-};
+        function update() {
+            if (paused) return;
+            for (let spring of springs) spring.update();
+            for (let circle of circles) circle.update();
+            
+            // Simplified Collision Logic (Kept for completeness)
+            for (let i = 0; i < circles.length; i++) {
+                for (let j = i+1; j < circles.length; j++) {
+                    let a = circles[i], b = circles[j];
+                    const aIsLocked = a.locked;
+                    const bIsLocked = b.locked;
+                    if (aIsLocked && bIsLocked) continue;
+                    let dx = b.x - a.x, dy = b.y - a.y;
+                    let dist = Math.hypot(dx, dy);
+                    let minDist = a.radius + b.radius;
+                    if (dist < minDist) {
+                        let angle = Math.atan2(dy, dx);
+                        let overlap = minDist - dist;
+                        if (aIsLocked) { b.x += Math.cos(angle) * overlap; b.y += Math.sin(angle) * overlap; } 
+                        else if (bIsLocked) { a.x -= Math.cos(angle) * overlap; a.y -= Math.sin(angle) * overlap; } 
+                        else {
+                            let totalMass = a.mass + b.mass;
+                            let ratioA = b.mass / totalMass;
+                            let ratioB = a.mass / totalMass;
+                            a.x -= Math.cos(angle) * overlap * ratioA; a.y -= Math.sin(angle) * overlap * ratioA;
+                            b.x += Math.cos(angle) * overlap * ratioB; b.y += Math.sin(angle) * overlap * ratioB;
+                        }
+                        let v1 = a.vx * Math.cos(angle) + a.vy * Math.sin(angle);
+                        let v2 = b.vx * Math.cos(angle) + b.vy * Math.sin(angle);
+                        let m1 = aIsLocked ? 99999999 : a.mass; 
+                        let m2 = bIsLocked ? 99999999 : b.mass;
+                        let totalMomentumMass = m1 + m2;
+                        let v1f = (v1 * (m1 - m2) + 2 * m2 * v2) / totalMomentumMass;
+                        let v2f = (v2 * (m2 - m1) + 2 * m1 * v1) / totalMomentumMass;
+                        let dv1 = v1f - v1;
+                        let dv2 = v2f - v2;
+                        if (!aIsLocked) { a.vx += dv1 * Math.cos(angle); a.vy += dv1 * Math.sin(angle); a.vx *= 0.95; a.vy *= 0.95; }
+                        if (!bIsLocked) { b.vx += dv2 * Math.cos(angle); b.vy += dv2 * Math.sin(angle); b.vx *= 0.95; b.vy *= 0.95; }
+                    }
+                }
+            }
+            
+            for (let circle of circles) {
+                for (let wall of walls) {
+                    const { x1, y1, x2, y2 } = wall;
+                    const dx = x2 - x1;
+                    const dy = y2 - y1;
+                    const wallLengthSq = dx * dx + dy * dy;
+                    let t = 0;
+                    if (wallLengthSq !== 0) {
+                        t = ((circle.x - x1) * dx + (circle.y - y1) * dy) / wallLengthSq;
+                        t = Math.max(0, Math.min(1, t));
+                    }
+                    const closestX = x1 + t * dx;
+                    const closestY = y1 + t * dy;
+                    const distSq = Math.pow(circle.x - closestX, 2) + Math.pow(circle.y - closestY, 2);
+                    const radiusSq = Math.pow(circle.radius, 2);
 
-document.getElementById('loadBtn').onclick = function() {
-    document.getElementById('loadDataTextarea').value = '';
-    document.getElementById('load-modal').style.display = 'flex';
-};
-document.getElementById('loadDataBtn').onclick = function() {
-    const json = document.getElementById('loadDataTextarea').value;
-    loadSimulation(json);
-};
+                    if (distSq < radiusSq) {
+                        const dist = Math.sqrt(distSq);
+                        const overlap = circle.radius - dist;
+                        const nx = (circle.x - closestX) / dist;
+                        const ny = (circle.y - closestY) / dist;
+                        if (!circle.locked) { circle.x += nx * overlap; circle.y += ny * overlap; }
+                        const dotProduct = circle.vx * nx + circle.vy * ny;
+                        const tangentVx = circle.vx - dotProduct * nx;
+                        const tangentVy = circle.vy - dotProduct * ny;
+                        const newTangentVx = tangentVx * wall.friction;
+                        const newTangentVy = tangentVy * wall.friction;
+                        const newNormalVx = (circle.vx - tangentVx) * -wall.restitution;
+                        const newNormalVy = (circle.vy - tangentVy) * -wall.restitution;
+                        circle.vx = newNormalVx + newTangentVx;
+                        circle.vy = newNormalVy + newTangentVy;
+                    }
+                }
+            }
+        }
 
-// --- Panel/Help Button Visibility ---
-const controlsPanel = document.getElementById('controls-panel');
-const toggleBtn = document.getElementById('toggle-btn');
-const panelWidth = 280 + 20 + 20; // 280px width + 2*20px padding
+        function updateFeedback() {
+            const now = performance.now();
+            const delta = now - lastFrameTime;
+            fps = Math.round(1000 / delta);
+            lastFrameTime = now;
+            document.getElementById('fpsValue').textContent = fps;
+            document.getElementById('ballCount').textContent = circles.length;
+            document.getElementById('springCount').textContent = springs.length;
+            document.getElementById('wallCount').textContent = walls.length;
+        }
 
-toggleBtn.addEventListener('click', () => {
-	const isVisible = controlsPanel.classList.toggle('visible');
-	
-	if (isVisible) {
-		toggleBtn.textContent = 'Controls ◀';
-		// Move button to the edge of the expanded panel
-		toggleBtn.style.right = (panelWidth) + 'px'; 
-	} else {
-		toggleBtn.textContent = 'Controls ▶';
-		// Move button back to the edge of the window
-		toggleBtn.style.right = '10px';
-	}
-});
+        function loop() {
+            update();
+            draw();
+            updateFeedback();
+            requestAnimationFrame(loop);
+        }
+        
+        // --- Serialization / Deserialization Logic (Same as before) ---
 
-document.getElementById('helpBtn').onclick = () => { document.getElementById('help-modal').style.display = 'flex'; };
+        function serializeState() {
+            const circleData = circles.map(c => c.toJSON());
+            const springData = springs.map(s => s.toJSON());
+            const wallData = walls.map(w => w.toJSON());
 
+            return JSON.stringify({
+                circles: circleData,
+                springs: springData,
+                walls: wallData,
+                global: {
+                    gravityOn, GRAVITY, resistanceOn, showVelocity, showMassLabel, 
+                    wallTopOn, wallBottomOn, wallLeftOn, wallRightOn, 
+                    snapGrid, gridSize, showGrid, theme
+                }
+            }, null, 2);
+        }
 
-// Grid Control Logic
-const snapGridBtn = document.getElementById('snapGridBtn');
-const gridSizeInput = document.getElementById('gridSizeInput');
-const showGridBtn = document.getElementById('showGridBtn');
+        function deserializeState(jsonString) {
+            try {
+                const data = JSON.parse(jsonString);
+                circles = []; springs = []; walls = []; selectedBall = null; connectMode = false;
+                
+                for (const cData of data.circles) {
+                    const circle = new Circle(cData.x, cData.y);
+                    circle.vx = cData.vx || 0; circle.vy = cData.vy || 0;
+                    circle.mass = cData.mass !== undefined ? cData.mass : 1;
+                    circle.locked = cData.locked || false;
+                    circle.color = cData.color || '#4af';
+                    circle.label = cData.label || '';
+                    circles.push(circle);
+                }
 
-snapGridBtn.onclick = function() {
-    snapGrid = !snapGrid;
-    this.textContent = 'Snap Grid: ' + (snapGrid ? 'On' : 'Off');
-	this.style.background = snapGrid ? '' : '#888';
-};
+                for (const sData of data.springs) {
+                    const a = circles[sData.aIndex];
+                    const b = circles[sData.bIndex];
+                    if (a && b) {
+                        const spring = new Spring(a, b);
+                        spring.length = sData.length !== undefined ? sData.length : SPRING_LENGTH;
+                        spring.strength = sData.strength !== undefined ? sData.strength : SPRING_STRENGTH;
+                        springs.push(spring);
+                    }
+                }
+                
+                for (const wData of data.walls) {
+                    const wall = new Wall(wData.x1, wData.y1, wData.x2, wData.y2);
+                    wall.color = wData.color || '#fff';
+                    wall.restitution = wData.restitution !== undefined ? wData.restitution : 0.8;
+                    wall.friction = wData.friction !== undefined ? wData.friction : 0.95;
+                    walls.push(wall);
+                }
 
-gridSizeInput.oninput = function() {
-    gridSize = Math.max(10, parseFloat(this.value)); // Minimum size 10
-    this.value = gridSize;
-};
+                if (data.global) {
+                    gravityOn = !!data.global.gravityOn;
+                    GRAVITY = data.global.GRAVITY !== undefined ? data.global.GRAVITY : BASE_GRAVITY_UNIT;
+                    resistanceOn = !!data.global.resistanceOn;
+                    showVelocity = !!data.global.showVelocity;
+                    showMassLabel = !!data.global.showMassLabel;
+                    wallTopOn = !!data.global.wallTopOn;
+                    wallBottomOn = !!data.global.wallBottomOn;
+                    wallLeftOn = !!data.global.wallLeftOn;
+                    wallRightOn = !!data.global.wallRightOn;
+                    snapGrid = !!data.global.snapGrid;
+                    gridSize = data.global.gridSize !== undefined ? data.global.gridSize : 50;
+                    showGrid = !!data.global.showGrid;
+                    theme = data.global.theme || 'dark';
+                    document.body.className = theme + '-theme';
+                    updateControlButtons();
+                }
 
-showGridBtn.onclick = function() {
-    showGrid = !showGrid;
-    this.textContent = 'Show Grid: ' + (showGrid ? 'On' : 'Off');
-	this.style.background = showGrid ? '#4af' : '';
-};
+                return true;
+            } catch (e) {
+                console.error("Failed to load simulation state:", e);
+                alert("Error loading simulation state. Please check the JSON format.");
+                return false;
+            }
+        }
 
+        // --- UI Editor Panel Creation (Same as before) ---
+        
+        function createEditorPanel(element) {
+            if (window.ballEditor) window.ballEditor.remove();
+            if (window.springEditor) window.springEditor.remove();
+            if (window.wallEditor) window.wallEditor.remove();
 
-// Wall Toggle Handler Factory
-function createWallToggle(wallVarName, buttonId) {
-	const btn = document.getElementById(buttonId);
-	
-	btn.onclick = function() {
-		// Toggle the corresponding global variable
-		eval(`${wallVarName} = !${wallVarName};`);
-		// Update button text and style
-		this.textContent = `${buttonId.replace('wall', '').replace('Btn', ' Wall')}: ${eval(wallVarName) ? 'On' : 'Off'}`;
-		this.style.background = eval(wallVarName) ? '' : '#888';
-	};
-}
+            const panel = document.createElement('div');
+            panel.className = 'editor-panel';
+            panel.style.left = `${Math.min(element.x || 50, canvas.width - 250)}px`;
+            panel.style.top = `${Math.min(element.y || 50, canvas.height - 300)}px`;
 
-createWallToggle('wallTopOn', 'wallTopBtn');
-createWallToggle('wallBottomOn', 'wallBottomBtn');
-createWallToggle('wallLeftOn', 'wallLeftBtn');
-createWallToggle('wallRightOn', 'wallRightBtn');
+            let html = '<h3>Element Editor</h3>';
+            
+            if (element instanceof Circle) {
+                window.ballEditor = panel;
+                html += `
+                    <div class="control-item"><label>Radius (Mass):</label><input type="number" id="edit-mass" value="${element.mass.toFixed(2)}" step="0.1" min="0.1"></div>
+                    <div class="control-item"><label>Color:</label><input type="color" id="edit-color" value="${element.color}"></div>
+                    <div class="control-item"><label>Label:</label><input type="text" id="edit-label" value="${element.label}" maxlength="10" placeholder="Optional Name"></div>
+                    <div class="control-item"><button id="edit-lock-btn">${element.locked ? 'Unlock Position' : 'Lock Position'}</button></div>
+                `;
+            } else if (element instanceof Spring) {
+                window.springEditor = panel;
+                html += `
+                    <div class="control-item"><label>Rest Length:</label><input type="number" id="edit-length" value="${element.length.toFixed(0)}" step="10" min="10"></div>
+                    <div class="control-item"><label>Strength:</label><input type="number" id="edit-strength" value="${element.strength.toFixed(3)}" step="0.001" min="0.001" max="1.0"></div>
+                `;
+            } else if (element instanceof Wall) {
+                window.wallEditor = panel;
+                html += `
+                    <div class="control-item">
+                        <label>Restitution (Bounce):</label>
+                        <input type="number" id="edit-restitution" value="${element.restitution.toFixed(2)}" step="0.05" min="0.0" max="1.0">
+                    </div>
+                    <div class="control-item">
+                        <label>Friction (Slipperiness):</label>
+                        <input type="number" id="edit-friction" value="${element.friction.toFixed(2)}" step="0.05" min="0.0" max="1.0">
+                    </div>
+                    <div class="control-item">
+                        <label>Color:</label>
+                        <input type="color" id="edit-color" value="${element.color}">
+                    </div>
+                `;
+            }
 
-// Gravity Input Logic
-const gravitySlider = document.getElementById('gravitySlider');
-const gravityValueSpan = document.getElementById('gravityValue');
-const gravityCustomInput = document.getElementById('gravityCustomInput');
-const applyGravityBtn = document.getElementById('applyGravityBtn');
+            html += `<button id="editor-close-btn">Close</button> <button id="editor-delete-btn" style="background: #c00;">Delete</button>`;
+            panel.innerHTML = html;
+            document.body.appendChild(panel);
 
-// Function to sync all gravity controls
-function updateGravity(newGravityValue) {
-    // Round to 2 decimal places for display consistency
-    GRAVITY = Math.round(newGravityValue * 100) / 100;
-    
-    // Update Slider
-    gravitySlider.value = GRAVITY;
-    
-    // Update Value Span (xG)
-    gravityValueSpan.textContent = GRAVITY.toFixed(2);
-    
-    // Update Custom Input (Percentage)
-    const percentage = Math.round((GRAVITY / BASE_GRAVITY_UNIT) * 100);
-    gravityCustomInput.value = percentage;
-}
+            panel.querySelector('#editor-close-btn').onclick = () => panel.remove();
+            panel.querySelector('#editor-delete-btn').onclick = () => {
+                deleteElement(element);
+                panel.remove();
+            };
 
-// 1. Slider input event (instant update)
-gravitySlider.oninput = function() {
-    updateGravity(parseFloat(this.value));
-};
+            if (element instanceof Circle) {
+                panel.querySelector('#edit-mass').onchange = (e) => element.mass = parseFloat(e.target.value);
+                panel.querySelector('#edit-color').onchange = (e) => element.color = e.target.value;
+                panel.querySelector('#edit-label').oninput = (e) => element.label = e.target.value.trim();
+                panel.querySelector('#edit-lock-btn').onclick = (e) => {
+                    element.locked = !element.locked;
+                    e.target.textContent = element.locked ? 'Unlock Position' : 'Lock Position';
+                };
+            } else if (element instanceof Spring) {
+                panel.querySelector('#edit-length').onchange = (e) => element.length = parseFloat(e.target.value);
+                panel.querySelector('#edit-strength').onchange = (e) => element.strength = parseFloat(e.target.value);
+            } else if (element instanceof Wall) {
+                panel.querySelector('#edit-restitution').onchange = (e) => element.restitution = parseFloat(e.target.value);
+                panel.querySelector('#edit-friction').onchange = (e) => element.friction = parseFloat(e.target.value);
+                panel.querySelector('#edit-color').onchange = (e) => element.color = e.target.value;
+            }
+        }
 
-// 2. Custom Input button click event
-applyGravityBtn.onclick = function() {
-    let percentage = parseFloat(gravityCustomInput.value);
-    
-    // Clamp the percentage input to a reasonable range 
-    if (isNaN(percentage)) percentage = 0;
-    percentage = Math.max(-200, Math.min(200, percentage));
-    
-    // Calculate new GRAVITY value
-    const newGravity = BASE_GRAVITY_UNIT * (percentage / 100);
-    
-    updateGravity(newGravity);
-};
+        // --- Control Panel and UI Logic (Same as before) ---
+        
+        const controlsPanel = document.getElementById('controls-panel');
+        const toggleBtn = document.getElementById('toggle-btn');
+        
+        function updateControlButtons() {
+            document.getElementById('pauseBtn').textContent = paused ? 'Resume: On' : 'Pause: Off';
+            document.getElementById('deleteModeBtn').textContent = `Single-Click Delete: ${deleteMode ? 'On' : 'Off'}`;
+            document.getElementById('wallModeBtn').textContent = `Wall Mode: ${wallMode ? 'On' : 'Off'}`;
+            document.getElementById('snapGridBtn').textContent = `Snap Grid: ${snapGrid ? 'On' : 'Off'}`;
+            document.getElementById('showGridBtn').textContent = `Show Grid: ${showGrid ? 'On' : 'Off'}`;
+            document.getElementById('gridSizeInput').value = gridSize;
+            document.getElementById('gravityBtn').textContent = `Gravity: ${gravityOn ? 'On' : 'Off'}`;
+            document.getElementById('resistanceBtn').textContent = `Resistance: ${resistanceOn ? 'On' : 'Off'}`;
+            document.getElementById('gravitySlider').value = (GRAVITY / BASE_GRAVITY_UNIT).toFixed(2);
+            document.getElementById('gravityValue').textContent = (GRAVITY / BASE_GRAVITY_UNIT).toFixed(2);
+            document.getElementById('gravityCustomInput').value = (GRAVITY / BASE_GRAVITY_UNIT * 100).toFixed(0);
+            document.getElementById('wallTopBtn').textContent = `Top Wall: ${wallTopOn ? 'On' : 'Off'}`;
+            document.getElementById('wallBottomBtn').textContent = `Bottom Wall: ${wallBottomOn ? 'On' : 'Off'}`;
+            document.getElementById('wallLeftBtn').textContent = `Left Wall: ${wallLeftOn ? 'On' : 'Off'}`;
+            document.getElementById('wallRightBtn').textContent = `Right Wall: ${wallRightOn ? 'On' : 'Off'}`;
+            document.getElementById('velocityBtn').textContent = `Show Velocity: ${showVelocity ? 'On' : 'Off'}`;
+            document.getElementById('massLabelBtn').textContent = `Show Mass: ${showMassLabel ? 'On' : 'Off'}`;
+            const themeText = theme === 'dark' ? 'Dark 🌙' : 'Light ☀️';
+            document.getElementById('themeToggleBtn').textContent = `Theme: ${themeText}`;
+        }
+        
+        document.getElementById('themeToggleBtn').onclick = () => {
+            theme = theme === 'dark' ? 'light' : 'dark';
+            document.body.className = theme + '-theme';
+            updateControlButtons();
+        };
 
-// 3. Custom Input 'Enter' key press (for convenience)
-gravityCustomInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        applyGravityBtn.click();
-    }
-});
+        toggleBtn.onclick = () => {
+            const isVisible = controlsPanel.classList.toggle('visible');
+            toggleBtn.textContent = isVisible ? 'Controls ◀' : 'Controls ▶';
+            toggleBtn.style.right = isVisible ? '300px' : '10px';
+        };
 
+        document.querySelectorAll('.collapsible-header').forEach(header => {
+            header.onclick = function() { this.parentNode.classList.toggle('collapsed'); };
+        });
 
-// Wall Mode Toggle
-const wallModeBtn = document.getElementById('wallModeBtn');
-wallModeBtn.onclick = function() {
-	wallMode = !wallMode;
-	this.textContent = 'Wall Mode: ' + (wallMode ? 'On' : 'Off');
-	this.style.background = wallMode ? '#0f0' : '';
-};
+        document.querySelectorAll('.control-group').forEach(group => {
+            if (group.id === 'update-board') group.classList.add('collapsed'); 
+        });
 
+        document.getElementById('gravityBtn').onclick = () => { gravityOn = !gravityOn; updateControlButtons(); };
+        document.getElementById('resistanceBtn').onclick = () => { resistanceOn = !resistanceOn; updateControlButtons(); };
+        document.getElementById('gravitySlider').oninput = (e) => {
+            const scale = parseFloat(e.target.value);
+            GRAVITY = scale * BASE_GRAVITY_UNIT;
+            updateControlButtons();
+        };
+        document.getElementById('applyGravityBtn').onclick = () => {
+            const customScale = parseFloat(document.getElementById('gravityCustomInput').value) / 100;
+            if (!isNaN(customScale)) { GRAVITY = customScale * BASE_GRAVITY_UNIT; updateControlButtons(); }
+        };
+        document.getElementById('wallTopBtn').onclick = () => { wallTopOn = !wallTopOn; updateControlButtons(); };
+        document.getElementById('wallBottomBtn').onclick = () => { wallBottomOn = !wallBottomOn; updateControlButtons(); };
+        document.getElementById('wallLeftBtn').onclick = () => { wallLeftOn = !wallLeftOn; updateControlButtons(); };
+        document.getElementById('wallRightBtn').onclick = () => { wallRightOn = !wallRightOn; updateControlButtons(); };
+        document.getElementById('velocityBtn').onclick = () => { showVelocity = !showVelocity; updateControlButtons(); };
+        document.getElementById('massLabelBtn').onclick = () => { showMassLabel = !showMassLabel; updateControlButtons(); };
+        document.getElementById('pauseBtn').onclick = () => { paused = !paused; updateControlButtons(); };
+        document.getElementById('clearAllBtn').onclick = () => { 
+            if (confirm("Are you sure you want to clear ALL balls, springs, and walls?")) {
+                circles = []; springs = []; walls = []; selectedBall = null; connectMode = false;
+                if (window.ballEditor) window.ballEditor.remove();
+                if (window.springEditor) window.springEditor.remove();
+                if (window.wallEditor) window.wallEditor.remove();
+            }
+        };
+        document.getElementById('deleteModeBtn').onclick = () => { 
+            deleteMode = !deleteMode; updateControlButtons();
+        };
+        document.getElementById('wallModeBtn').onclick = () => { 
+            wallMode = !wallMode; 
+            updateControlButtons();
+            if(wallMode) { connectMode = false; selectedBall = null; }
+        };
+        document.getElementById('snapGridBtn').onclick = () => { snapGrid = !snapGrid; updateControlButtons(); };
+        document.getElementById('showGridBtn').onclick = () => { showGrid = !showGrid; updateControlButtons(); };
+        document.getElementById('gridSizeInput').onchange = (e) => {
+            gridSize = parseInt(e.target.value);
+            if (isNaN(gridSize) || gridSize < 10) gridSize = 10;
+            updateControlButtons();
+        };
 
-// Clear All button
-document.getElementById('clearAllBtn').onclick = function() {
-	circles = [];
-	springs = [];
-	walls = [];
-	draggingBall = null;
-	selectedBall = null;
-	connectMode = false;
-	selectedSpring = null;
-	if (window.ballEditor) window.ballEditor.remove();
-	if (window.springEditor) window.springEditor.remove();
-	if (window.wallEditor) window.wallEditor.remove();
-	hoveredElement = null;
-};
+        const helpModal = document.getElementById('help-modal');
+        const saveModal = document.getElementById('save-modal');
+        const loadModal = document.getElementById('load-modal');
+        const saveDataTextarea = document.getElementById('saveDataTextarea');
+        const loadDataTextarea = document.getElementById('loadDataTextarea');
 
-// Other Button logic
-document.getElementById('gravityBtn').onclick = function() {
-	gravityOn = !gravityOn;
-	this.textContent = 'Gravity: ' + (gravityOn ? 'On' : 'Off');
-	this.style.background = gravityOn ? '' : '#888';
-};
-document.getElementById('velocityBtn').onclick = function() {
-	showVelocity = !showVelocity;
-	this.textContent = 'Show Velocity: ' + (showVelocity ? 'On' : 'Off');
-	this.style.background = showVelocity ? '#0ff' : '';
-};
-document.getElementById('pauseBtn').onclick = function() {
-	paused = !paused;
-	this.textContent = 'Pause: ' + (paused ? 'On' : 'Off');
-	this.style.background = paused ? '#c00' : '';
-};
-document.getElementById('deleteModeBtn').onclick = function() {
-	deleteMode = !deleteMode;
-	this.textContent = 'Single-Click Delete: ' + (deleteMode ? 'On' : 'Off');
-	this.style.background = deleteMode ? '#c00' : '';
-};
-document.getElementById('massLabelBtn').onclick = function() {
-	showMassLabel = !showMassLabel;
-	this.textContent = 'Show Mass: ' + (showMassLabel ? 'On' : 'Off');
-	this.style.background = showMassLabel ? '' : '#888';
-};
-document.getElementById('resistanceBtn').onclick = function() {
-	resistanceOn = !resistanceOn;
-	this.textContent = 'Resistance: ' + (resistanceOn ? 'On' : 'Off');
-	this.style.background = resistanceOn ? '' : '#888';
-	FRICTION = resistanceOn ? 0.99 : 1.0;
-};
+        document.getElementById('helpBtn').onclick = () => helpModal.style.display = 'flex';
+        document.getElementById('saveBtn').onclick = () => {
+            saveDataTextarea.value = serializeState();
+            saveModal.style.display = 'flex';
+        };
+        document.getElementById('copySaveDataBtn').onclick = () => {
+            saveDataTextarea.select();
+            document.execCommand('copy');
+            alert('Simulation data copied to clipboard!');
+        };
+        document.getElementById('loadBtn').onclick = () => {
+            loadDataTextarea.value = '';
+            loadModal.style.display = 'flex';
+        };
+        document.getElementById('loadDataBtn').onclick = () => {
+            const success = deserializeState(loadDataTextarea.value);
+            if (success) { loadModal.style.display = 'none'; }
+        };
+        document.querySelectorAll('.modal-close-btn').forEach(btn => {
+            btn.onclick = () => document.getElementById(btn.dataset.modal).style.display = 'none';
+        });
+        window.onclick = (event) => {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        };
+        
+        // --- Mouse and Key Events (FIX APPLIED HERE) ---
 
+        let mouseX = 0, mouseY = 0;
+        let isDragging = false;
 
-// Editor functions (Ball, Spring, Wall)
+        canvas.onmousemove = (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
 
-function showBallEditor(ball) {
-	if (window.ballEditor) window.ballEditor.remove();
-	if (window.springEditor) window.springEditor.remove();
-	if (window.wallEditor) window.wallEditor.remove();
-	let editor = document.createElement('div');
-	window.ballEditor = editor;
-	editor.className = 'editor-panel ball-editor-panel';
-	editor.innerHTML = `<b>Edit Ball</b><br>
-		<label>Name:</label> <input type='text' id='ballLabel' value='${ball.label}'><br>
-		<label>Mass:</label> <input type='number' id='ballMass' value='${ball.mass.toFixed(2)}' step='0.1' min='0.1' max='10'><br>
-		<label>Color:</label> <input type='color' id='ballColor' value='${ball.color}'><br>
-		<label><input type='checkbox' id='ballLock' ${ball.locked ? 'checked' : ''}> Lock Ball</label><br>
-		<button id='ballClose'>Close</button>
-	`;
-	document.body.appendChild(editor);
-	
-	function updatePanelPosition() {
-		editor.style.left = (ball.x - 20) + 'px';
-		editor.style.top = (ball.y - ball.radius - 120) + 'px'; 
-	}
-	updatePanelPosition();
-	
-	function followBall() {
-		if (window.ballEditor === editor) {
-			updatePanelPosition();
-			requestAnimationFrame(followBall);
-		}
-	}
-	followBall();
-	
-	// --- Instant Update Logic ---
-	const massInput = document.getElementById('ballMass');
-	const colorInput = document.getElementById('ballColor');
-	const labelInput = document.getElementById('ballLabel');
-	const lockInput = document.getElementById('ballLock');
+            if (isDragging && draggingBall) {
+                draggingBall.x = mouseX + dragOffset.x;
+                draggingBall.y = mouseY + dragOffset.y;
+                if(draggingBall.locked) {
+                    draggingBall.tx = draggingBall.x;
+                    draggingBall.ty = draggingBall.y;
+                }
+            } else if (isDragging && wallMode && currentDrawingWall) {
+                const snappedEnd = getSnapEndPoint(mouseX, mouseY);
+                currentDrawingWall.x2 = snappedEnd.x;
+                currentDrawingWall.y2 = snappedEnd.y;
+            } else {
+                if (!document.querySelector('.editor-panel')) {
+                    const newHovered = getHoveredElement(mouseX, mouseY);
+                    if (newHovered !== hoveredElement) {
+                        hoveredElement = newHovered;
+                    }
+                }
+            }
+        };
 
-	massInput.oninput = () => {
-		ball.mass = Math.max(0.1, parseFloat(massInput.value));
-	};
-	colorInput.oninput = () => {
-		ball.color = colorInput.value;
-	};
-	labelInput.oninput = () => {
-		ball.label = labelInput.value;
-	};
-	lockInput.oninput = () => {
-		ball.locked = lockInput.checked;
-	};
-	
-	document.getElementById('ballClose').onclick = () => {
-		editor.remove();
-		window.ballEditor = null;
-	};
-}
+        canvas.onmousedown = (e) => {
+            if (e.clientX > canvas.width - controlsPanel.offsetWidth && controlsPanel.classList.contains('visible')) return;
+            if (e.target.closest('.editor-panel')) return;
 
-function showSpringEditor(spring) {
-	if (window.ballEditor) window.ballEditor.remove();
-	if (window.springEditor) window.springEditor.remove();
-	if (window.wallEditor) window.wallEditor.remove();
-	let editor = document.createElement('div');
-	window.springEditor = editor;
-	editor.className = 'editor-panel spring-editor-panel';
-	editor.style.left = '50px';
-	editor.style.top = '50px';
-	editor.innerHTML = `<b>Edit Spring</b><br>
-		Length: <input type='number' id='springLength' value='${spring.length}' step='1' min='10' max='1000'><br>
-		Strength: <input type='number' id='springStrength' value='${spring.strength}' step='0.001' min='0.001' max='1'><br>
-		<button id='springSave'>Save</button>
-		<button id='springClose'>Close</button>
-	`;
-	document.body.appendChild(editor);
-	document.getElementById('springSave').onclick = () => {
-		spring.length = parseFloat(document.getElementById('springLength').value);
-		spring.strength = parseFloat(document.getElementById('springStrength').value);
-		spring.selected = false;
-		selectedSpring = null;
-		editor.remove();
-		window.springEditor = null;
-	};
-	document.getElementById('springClose').onclick = () => {
-		spring.selected = false;
-		selectedSpring = null;
-		editor.remove();
-		window.springEditor = null;
-	};
-}
+            mouseX = e.clientX; mouseY = e.clientY;
+            hoveredElement = getHoveredElement(mouseX, mouseY);
 
-function showWallEditor(wall) {
-	if (window.ballEditor) window.ballEditor.remove();
-	if (window.springEditor) window.springEditor.remove();
-	if (window.wallEditor) window.wallEditor.remove();
-	let editor = document.createElement('div');
-	window.wallEditor = editor;
-	editor.className = 'editor-panel wall-editor-panel';
-	editor.style.left = '50px';
-	editor.style.top = '50px';
-	editor.innerHTML = `<b>Edit Wall</b><br>
-		Color: <input type='color' id='wallColor' value='${wall.color}'><br>
-		Restitution: <input type='number' id='wallRestitution' value='${wall.restitution}' step='0.01' min='0' max='1'><br>
-		Friction: <input type='number' id='wallFriction' value='${wall.friction}' step='0.01' min='0' max='1'><br>
-		<button id='wallClose'>Close</button>
-	`;
-	document.body.appendChild(editor);
-	
-	const colorInput = document.getElementById('wallColor');
-	const restitutionInput = document.getElementById('wallRestitution');
-	const frictionInput = document.getElementById('wallFriction');
+            // Right-click: Open Editor
+            if (e.button === 2) { 
+                e.preventDefault();
+                if (hoveredElement) {
+                    let editorX, editorY;
+                    if (hoveredElement instanceof Circle) { editorX = hoveredElement.x; editorY = hoveredElement.y; } 
+                    else if (hoveredElement instanceof Spring) { editorX = (hoveredElement.a.x + hoveredElement.b.x) / 2; editorY = (hoveredElement.a.y + hoveredElement.b.y) / 2; springs.forEach(s => s.selected = (s === hoveredElement)); selectedSpring = hoveredElement; } 
+                    else if (hoveredElement instanceof Wall) { editorX = (hoveredElement.x1 + hoveredElement.x2) / 2; editorY = (hoveredElement.y1 + hoveredElement.y2) / 2; }
+                    createEditorPanel(hoveredElement);
+                } else {
+                    springs.forEach(s => s.selected = false); selectedSpring = null;
+                }
+                return; 
+            }
+            
+            // Left-click (e.button === 0)
+            
+            // 1. Handle Delete Mode
+            if (deleteMode && hoveredElement) {
+                e.preventDefault();
+                deleteElement(hoveredElement);
+                hoveredElement = null;
+                return; 
+            }
 
-	colorInput.oninput = () => {
-		wall.color = colorInput.value;
-	};
-	restitutionInput.oninput = () => {
-		wall.restitution = Math.max(0, Math.min(1, parseFloat(restitutionInput.value)));
-	};
-	frictionInput.oninput = () => {
-		wall.friction = Math.max(0, Math.min(1, parseFloat(frictionInput.value)));
-	};
-	
-	document.getElementById('wallClose').onclick = () => {
-		editor.remove();
-		window.wallEditor = null;
-	};
-}
+            // 2. Wall Mode Logic
+            if (wallMode) {
+                const snapStart = getSnapStartPoint(mouseX, mouseY);
+                currentDrawingWall = new Wall(snapStart.x, snapStart.y, snapStart.x, snapStart.y);
+                isDragging = true;
+                return; 
+            }
+            
+            // 3. Dragging Logic
+            if (hoveredElement instanceof Circle) {
+                if (hoveredElement.locked) return;
+                draggingBall = hoveredElement;
+                draggingBall.isDragged = true;
+                dragOffset.x = draggingBall.x - mouseX;
+                dragOffset.y = draggingBall.y - mouseY;
+                dragHistory = [{x: draggingBall.x, y: draggingBall.y, time: performance.now()}];
+                isDragging = true;
+                
+                springs.forEach(s => s.selected = false); selectedSpring = null;
+                if (window.springEditor) window.springEditor.remove();
+                return;
+            }
+            
+            // 4. Create new ball / Connect Mode Logic
+            // FIX: This section now runs if the click didn't trigger deletion, wall drawing, or dragging a ball.
+            if (connectMode) {
+                // If clicked on empty space (no hoveredElement), exit connect mode.
+                if (!hoveredElement) {
+                    connectMode = false;
+                    selectedBall = null;
+                }
+            } else {
+                // If not in connect mode, and no element was clicked/dragged, create a new ball.
+                circles.push(new Circle(mouseX, mouseY));
+            }
+        };
 
+        canvas.onmouseup = (e) => {
+            if (e.button !== 0) return;
+            
+            if (wallMode && currentDrawingWall) {
+                if (Math.hypot(currentDrawingWall.x2 - currentDrawingWall.x1, currentDrawingWall.y2 - currentDrawingWall.y1) > 5) {
+                    walls.push(currentDrawingWall);
+                }
+                currentDrawingWall = null;
+                isDragging = false;
+                return;
+            }
 
-// Canvas Mouse Events
-canvas.addEventListener('mousedown', e => {
-	let x = e.clientX, y = e.clientY;
-	dragHistory = [];
-	let found = getHoveredElement(x, y);
+            if (draggingBall) {
+                draggingBall.isDragged = false;
+                if (!paused && !draggingBall.locked) {
+                    const dragDuration = performance.now() - dragHistory[0].time;
+                    let initialX = dragHistory[0].x;
+                    let initialY = dragHistory[0].y;
+                    let finalVx = (draggingBall.x - initialX) / (dragDuration / 1000) * 0.1; 
+                    let finalVy = (draggingBall.y - initialY) / (dragDuration / 1000) * 0.1;
+                    const maxSpeed = 100;
+                    if (Math.hypot(finalVx, finalVy) > maxSpeed) {
+                        const ratio = maxSpeed / Math.hypot(finalVx, finalVy);
+                        finalVx *= ratio; finalVy *= ratio;
+                    }
+                    draggingBall.vx = finalVx; draggingBall.vy = finalVy;
+                }
+                draggingBall = null;
+                isDragging = false;
+            }
 
-	// Right-click to edit any element
-	if (e.button === 2) {
-		if (found instanceof Circle) {
-			showBallEditor(found);
-			return;
-		}
-		if (found instanceof Spring) {
-			showSpringEditor(found);
-			return;
-		}
-		if (found instanceof Wall) {
-			showWallEditor(found);
-			return;
-		}
-	}
+            const clickedBall = circles.find(c => Math.hypot(c.x-mouseX, c.y-mouseY) < c.radius);
+            if (connectMode && clickedBall && selectedBall && selectedBall !== clickedBall) {
+                const exists = springs.some(s => 
+                    (s.a === selectedBall && s.b === clickedBall) || 
+                    (s.a === clickedBall && s.b === selectedBall)
+                );
+                if (!exists) {
+                    springs.push(new Spring(selectedBall, clickedBall));
+                }
+                connectMode = false; selectedBall = null;
+            }
+        };
 
-	// 1. Handle Wall Mode Creation
-	if (wallMode) {
-        const startPoint = getSnapStartPoint(x, y);
-		currentDrawingWall = new Wall(startPoint.x, startPoint.y, startPoint.x, startPoint.y);
-		return;
-	}
+        canvas.ondblclick = (e) => {
+            if (e.clientX > canvas.width - controlsPanel.offsetWidth && controlsPanel.classList.contains('visible')) return;
+            
+            const clickedBall = circles.find(c => Math.hypot(c.x-e.clientX, c.y-e.clientY) < c.radius);
+            if (clickedBall) {
+                if (connectMode && selectedBall === clickedBall) {
+                    connectMode = false; selectedBall = null;
+                } else {
+                    connectMode = true; selectedBall = clickedBall;
+                }
+            } else {
+                connectMode = false; selectedBall = null;
+            }
+        };
 
-	// 2. Handle Delete Mode
-	if (deleteMode && found) {
-		deleteElement(found);
-		return;
-	}
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'd' || e.key === 'D' || e.key === 'Delete') {
+                if (hoveredElement) {
+                    e.preventDefault(); 
+                    deleteElement(hoveredElement);
+                    hoveredElement = null;
+                }
+            }
+        });
 
-	// 3. Handle Spring Selection
-	if (found instanceof Spring) {
-		springs.forEach(s => s.selected = false);
-		found.selected = true;
-		selectedSpring = found;
-		showSpringEditor(found);
-		return;
-	}
-	
-	// 4. Handle Ball Interaction (Drag, Edit, Connect)
-	if (found instanceof Circle) {
-		// Connect Mode 
-		if (connectMode) {
-			if (selectedBall && found !== selectedBall) {
-				if (!springs.some(s => (s.a === selectedBall && s.b === found) || (s.a === found && s.b === selectedBall))) {
-					springs.push(new Spring(selectedBall, found));
-				}
-				connectMode = false;
-				selectedBall = null;
-				return;
-			}
-			return;
-		}
-		
-		// Left-Click to Drag
-		draggingBall = found;
-		dragOffset.x = x - found.x;
-		dragOffset.y = y - found.y;
-		found.isDragged = true;
-		found.tx = found.x; 
-		found.ty = found.y;
-		selectedBall = found;
-		if (window.ballEditor) window.ballEditor.remove(); 
-	} 
-	// 5. Default: Create New Ball
-	else {
-		circles.push(new Circle(x, y));
-		selectedBall = null;
-		connectMode = false;
-		if (window.ballEditor) window.ballEditor.remove();
-		if (window.springEditor) window.springEditor.remove();
-		if (window.wallEditor) window.wallEditor.remove();
-	}
-});
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
 
-canvas.addEventListener('contextmenu', e => {
-	e.preventDefault();
-});
-
-canvas.addEventListener('mousemove', e => {
-	const x = e.clientX, y = e.clientY;
-	hoveredElement = getHoveredElement(x, y);
-
-	if (wallMode && currentDrawingWall) {
-		const endPoint = getSnapEndPoint(x, y);
-		currentDrawingWall.x2 = endPoint.x;
-		currentDrawingWall.y2 = endPoint.y;
-		return;
-	}
-	if (draggingBall) {
-		let newX = x - dragOffset.x;
-		let newY = y - dragOffset.y;
-		
-		dragHistory.push({x: newX, y: newY, t: performance.now()});
-		if (dragHistory.length > 10) dragHistory.shift();
-
-		draggingBall.x = newX;
-		draggingBall.y = newY;
-	}
-});
-
-canvas.addEventListener('mouseup', e => {
-	if (wallMode && currentDrawingWall) {
-		// Only create a wall if the drag distance is greater than 10 pixels
-		if (Math.hypot(currentDrawingWall.x2 - currentDrawingWall.x1, currentDrawingWall.y2 - currentDrawingWall.y1) > 10) {
-			walls.push(currentDrawingWall);
-		}
-		currentDrawingWall = null;
-		return;
-	}
-
-	if (draggingBall) {
-		if (dragHistory.length >= 2) {
-			let last = dragHistory[dragHistory.length-1];
-			let first = dragHistory[0];
-			let dt = (last.t - first.t) / 1000; 
-			if (dt > 0) {
-				let dx = last.x - first.x;
-				let dy = last.y - first.y;
-				const flickFactor = 0.05; 
-				draggingBall.vx = dx / dt * flickFactor; 
-				draggingBall.vy = dy / dt * flickFactor;
-			}
-		}
-		draggingBall.isDragged = false;
-		draggingBall = null;
-		dragHistory = [];
-	}
-});
-
-canvas.addEventListener('dblclick', e => {
-	if (wallMode) return;
-	let x = e.clientX, y = e.clientY;
-	let found = circles.find(c => Math.hypot(c.x-x, c.y-y) < c.radius);
-	if (found) {
-		selectedBall = found;
-		connectMode = true;
-	}
-});
-
-document.addEventListener('keydown', e => {
-	if ((e.key === 'd' || e.key === 'D') && 
-		document.activeElement.tagName !== 'INPUT' && 
-		document.activeElement.tagName !== 'TEXTAREA') 
-	{
-		if (hoveredElement) {
-			e.preventDefault(); 
-			deleteElement(hoveredElement);
-		}
-	}
-});
-
-
-window.addEventListener('resize', () => {
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
-	// When resizing, keep the toggle button updated if the panel is open
-	if (controlsPanel.classList.contains('visible')) {
-		toggleBtn.style.right = (panelWidth) + 'px';
-	}
-});
-
-// Initial call to set gravity state and start the loop
-updateGravity(GRAVITY); 
-loop();
-</script>
+        // Initialization
+        updateControlButtons();
+        loop();
+    </script>
 </body>
 </html>
