@@ -64,6 +64,13 @@
 			vertical-align: middle;
 			width: 150px;
 		}
+		/* Style for custom input */
+		.gravity-input-group input[type="number"] {
+			width: 50px;
+			text-align: right;
+			margin-right: 5px;
+			vertical-align: middle;
+		}
 		#info-text {
 			position: absolute;
 			top: 10px;
@@ -112,8 +119,14 @@
 			<h3>Global Physics</h3>
 			<div class="control-item">
 				<button id="gravityBtn">Gravity: On</button>
+				<div class="gravity-input-group">
+					Manual: 
+					<input type="number" id="gravityCustomInput" value="50" step="1" min="-200" max="200">
+					%
+					<button id="applyGravityBtn">Apply</button>
+				</div>
 				<div>
-					Gravity Strength: <input type="range" id="gravitySlider" min="0" max="2" step="0.01" value="0.5">
+					Strength (xG): <input type="range" id="gravitySlider" min="-2.0" max="2.0" step="0.01" value="0.5">
 					<span id="gravityValue">0.50</span>
 				</div>
 			</div>
@@ -152,13 +165,14 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let GRAVITY = 0.5; 
+const BASE_GRAVITY_UNIT = 0.5; // Represents 100% or 1G. 
+let GRAVITY = BASE_GRAVITY_UNIT; // Current Gravity Multiplier
 let gravityOn = true;
 let showVelocity = false;
 let FRICTION = 0.99;
 let resistanceOn = true;
 const RADIUS = 20; 
-const SPRING_STRENGTH = 0.01;
+const SPRING_STRENGTH = 0.01; 
 const SPRING_LENGTH = 100;
 
 // Wall control state
@@ -301,7 +315,11 @@ class Circle {
 		this.tx = this.x;
 		this.ty = this.y;
 		
-		if (gravityOn) this.vy += GRAVITY; 
+		// Gravity force applied, scaled by mass.
+		if (gravityOn) {
+			this.vy += GRAVITY * this.mass; 
+		}
+
 		
 		if (resistanceOn) {
 			this.vx *= FRICTION;
@@ -312,19 +330,19 @@ class Circle {
 		
 		const restitution = 0.7;
 
-		// --- Boundary Collision Logic (FIXED) ---
+		// --- Boundary Collision Logic ---
 		
 		// Left Wall
 		if (wallLeftOn && this.x < this.radius) { 
 			this.x = this.radius; 
 			this.vx *= -restitution; 
 		}
-		// Right Wall (FIX: Used canvas.width)
+		// Right Wall
 		if (wallRightOn && this.x > canvas.width - this.radius) { 
 			this.x = canvas.width - this.radius; 
 			this.vx *= -restitution; 
 		}
-		// Top Wall (FIX: Used 0 for boundary)
+		// Top Wall
 		if (wallTopOn && this.y < this.radius) { 
 			this.y = this.radius; 
 			this.vy *= -restitution; 
@@ -370,12 +388,13 @@ class Spring {
 		let fx = (dx / dist) * force;
 		let fy = (dy / dist) * force;
 		
+		// Divide the spring force by the ball's mass (F = ma, so a = F/m).
 		if (!this.a.locked) {
-			this.a.vx += fx / this.a.mass;
+			this.a.vx += fx / this.a.mass; 
 			this.a.vy += fy / this.a.mass;
 		}
 		if (!this.b.locked) {
-			this.b.vx -= fx / this.b.mass;
+			this.b.vx -= fx / this.b.mass; 
 			this.b.vy -= fy / this.b.mass;
 		}
 	}
@@ -509,8 +528,7 @@ toggleBtn.addEventListener('click', () => {
 // Wall Toggle Handler Factory
 function createWallToggle(wallVarName, buttonId) {
 	const btn = document.getElementById(buttonId);
-	let isWallOn = wallVarName === 'wallTopOn' || wallVarName === 'wallBottomOn' || wallVarName === 'wallLeftOn' || wallVarName === 'wallRightOn';
-
+	
 	btn.onclick = function() {
 		// Toggle the corresponding global variable
 		eval(`${wallVarName} = !${wallVarName};`);
@@ -524,6 +542,55 @@ createWallToggle('wallTopOn', 'wallTopBtn');
 createWallToggle('wallBottomOn', 'wallBottomBtn');
 createWallToggle('wallLeftOn', 'wallLeftBtn');
 createWallToggle('wallRightOn', 'wallRightBtn');
+
+// Gravity Input Logic
+const gravitySlider = document.getElementById('gravitySlider');
+const gravityValueSpan = document.getElementById('gravityValue');
+const gravityCustomInput = document.getElementById('gravityCustomInput');
+const applyGravityBtn = document.getElementById('applyGravityBtn');
+
+// Function to sync all gravity controls
+function updateGravity(newGravityValue) {
+    // Round to 2 decimal places for display consistency
+    GRAVITY = Math.round(newGravityValue * 100) / 100;
+    
+    // Update Slider
+    gravitySlider.value = GRAVITY;
+    
+    // Update Value Span (xG)
+    gravityValueSpan.textContent = GRAVITY.toFixed(2);
+    
+    // Update Custom Input (Percentage)
+    const percentage = Math.round((GRAVITY / BASE_GRAVITY_UNIT) * 100);
+    gravityCustomInput.value = percentage;
+}
+
+// 1. Slider input event (instant update)
+gravitySlider.oninput = function() {
+    updateGravity(parseFloat(this.value));
+};
+
+// 2. Custom Input button click event
+applyGravityBtn.onclick = function() {
+    let percentage = parseFloat(gravityCustomInput.value);
+    
+    // Clamp the percentage input to a reasonable range 
+    // (min -200%, max 200%) to keep simulation stable.
+    if (isNaN(percentage)) percentage = 0;
+    percentage = Math.max(-200, Math.min(200, percentage));
+    
+    // Calculate new GRAVITY value
+    const newGravity = BASE_GRAVITY_UNIT * (percentage / 100);
+    
+    updateGravity(newGravity);
+};
+
+// 3. Custom Input 'Enter' key press (for convenience)
+gravityCustomInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        applyGravityBtn.click();
+    }
+});
 
 
 // Clear All button
@@ -540,10 +607,6 @@ document.getElementById('clearAllBtn').onclick = function() {
 };
 
 // Other Button logic
-document.getElementById('gravitySlider').oninput = function() {
-	GRAVITY = parseFloat(this.value);
-	document.getElementById('gravityValue').textContent = GRAVITY.toFixed(2);
-};
 document.getElementById('gravityBtn').onclick = function() {
 	gravityOn = !gravityOn;
 	this.textContent = 'Gravity: ' + (gravityOn ? 'On' : 'Off');
