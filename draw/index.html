@@ -5,69 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Responsive Mobile Drawing App</title>
 <style>
-body, html {
-  margin:0;
-  padding:0;
-  height:100%;
-  width:100%;
-  font-family:sans-serif;
-  background:#2b2b2b;
-  color:white;
-  display:flex;
-  flex-direction:column;
-}
-#topbar {
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  padding:5px;
-  background:#1f1f1f;
-}
-#topbar button,input[type=color],input[type=range]{
-  padding:5px;
-  border:none;
-  border-radius:5px;
-  cursor:pointer;
-}
-#main {
-  flex:1;
-  display:flex;
-  overflow:hidden;
-}
-#sidebar {
-  width:200px;
-  background:#1f1f1f;
-  flex-shrink:0;
-  padding:10px;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  overflow-y:auto;
-}
-#canvasContainer {
-  flex:1;
-  position:relative;
-  background:white;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-}
-canvas {
-  position:absolute;
-  top:0;
-  left:0;
-  touch-action: none; /* important for mobile touch */
-}
-.layerItem{
-  background:#333;
-  padding:5px;
-  margin-bottom:3px;
-  border-radius:4px;
-  cursor:pointer;
-}
-.layerItem.active{
-  background:#555;
-}
+body, html {margin:0;padding:0;width:100%;height:100%;background:#2b2b2b;color:white;font-family:sans-serif;}
+#topbar {display:flex;flex-wrap:wrap;gap:6px;padding:5px;background:#1f1f1f;}
+#topbar button,input[type=color],input[type=range]{padding:5px;border:none;border-radius:5px;cursor:pointer;}
+#main {flex:1;display:flex;overflow:hidden;height:calc(100% - 60px);}
+#sidebar {width:200px;background:#1f1f1f;flex-shrink:0;padding:10px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;}
+#canvasContainer {flex:1;position:relative;background:white;display:flex;justify-content:center;align-items:center;}
+canvas {position:absolute;top:0;left:0;touch-action:none;}
+.layerItem{background:#333;padding:5px;margin-bottom:3px;border-radius:4px;cursor:pointer;}
+.layerItem.active{background:#555;}
 </style>
 </head>
 <body>
@@ -93,66 +39,46 @@ canvas {
 </div>
 
 <script type="module">
-// --- Static PSD import for GitHub Pages ---
-import * as agPsd from './libs/ags-psd.min.js'; // make sure you have this local
+import * as agPsd from './libs/ags-psd.min.js'; // local library
 
-const container = document.getElementById("canvasContainer");
-const layersDiv = document.getElementById("layers");
-const colorPicker = document.getElementById("colorPicker");
-const brushSize = document.getElementById("brushSize");
-const bgColor = document.getElementById("bgColor");
+const container=document.getElementById("canvasContainer");
+const layersDiv=document.getElementById("layers");
+const colorPicker=document.getElementById("colorPicker");
+const brushSize=document.getElementById("brushSize");
+const bgColorInput=document.getElementById("bgColor");
 
-let layers = [];
-let activeLayer = null;
-let drawing = false;
-let bgTransparent = false;
-let undoStack = [];
-let redoStack = [];
-let canvasWidth = 800;
-let canvasHeight = 600;
+let layers=[],activeLayer=null,drawing=false,bgTransparent=false;
+let undoStack=[],redoStack=[];
 
-// --- Responsive canvas ---
-function resizeCanvas(){
-  const rect = container.getBoundingClientRect();
-  canvasWidth = rect.width;
-  canvasHeight = rect.height;
-  layers.forEach(l=>{
-    const img = l.canvas.toDataURL();
-    l.canvas.width = canvasWidth;
-    l.canvas.height = canvasHeight;
-    const ctx = l.ctx;
-    const imgEl = new Image();
-    imgEl.onload = ()=>ctx.drawImage(imgEl,0,0,canvasWidth,canvasHeight);
-    imgEl.src = img;
-  });
-}
-window.addEventListener("resize",resizeCanvas);
-
-// --- Layers ---
 function createLayer(name="Layer "+(layers.length+1)){
-  const c = document.createElement("canvas");
-  c.width = container.clientWidth;
-  c.height = container.clientHeight;
-  const ctx = c.getContext("2d");
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
+  const c=document.createElement("canvas");
+  c.width=container.clientWidth;
+  c.height=container.clientHeight;
+  c.style.zIndex=layers.length;
+  const ctx=c.getContext("2d");
+  ctx.lineCap="round"; ctx.lineJoin="round";
   container.appendChild(c);
   const layer={canvas:c,ctx,name};
   layers.push(layer);
   setActiveLayer(layer);
   updateLayerList();
 }
+
 function deleteLayer(){
-  if(!activeLayer || layers.length<=1) return;
+  if(!activeLayer||layers.length<=1) return;
   container.removeChild(activeLayer.canvas);
-  layers = layers.filter(l=>l!==activeLayer);
+  layers=layers.filter(l=>l!==activeLayer);
   setActiveLayer(layers[layers.length-1]);
   updateLayerList();
 }
+
 function setActiveLayer(layer){
   activeLayer=layer;
+  layers.forEach((l,i)=>l.canvas.style.zIndex=i);
+  if(layer) layer.canvas.style.zIndex=layers.length;
   updateLayerList();
 }
+
 function updateLayerList(){
   layersDiv.innerHTML="";
   layers.forEach((l,i)=>{
@@ -166,27 +92,17 @@ function updateLayerList(){
 
 // --- Drawing ---
 function getXY(e){
-  const rect = container.getBoundingClientRect();
-  if(e.touches) return {x:e.touches[0].clientX-rect.left, y:e.touches[0].clientY-rect.top};
-  return {x:e.offsetX, y:e.offsetY};
+  const rect=activeLayer.canvas.getBoundingClientRect();
+  let x,y;
+  if(e.touches){x=e.touches[0].clientX-rect.left; y=e.touches[0].clientY-rect.top;}
+  else {x=e.clientX-rect.left; y=e.clientY-rect.top;}
+  return {x,y};
 }
-function startDraw(e){
-  if(!activeLayer) return;
-  drawing=true;
-  const {x,y}=getXY(e);
-  activeLayer.ctx.beginPath();
-  activeLayer.ctx.moveTo(x,y);
-  saveState();
-}
-function draw(e){
-  if(!drawing) return;
-  const {x,y}=getXY(e);
-  activeLayer.ctx.lineWidth=brushSize.value;
-  activeLayer.ctx.strokeStyle=colorPicker.value;
-  activeLayer.ctx.lineTo(x,y);
-  activeLayer.ctx.stroke();
-}
-function endDraw(){drawing=false;}
+
+function startDraw(e){e.preventDefault(); if(!activeLayer) return; drawing=true; const {x,y}=getXY(e); activeLayer.ctx.beginPath(); activeLayer.ctx.moveTo(x,y); saveState();}
+function draw(e){e.preventDefault(); if(!drawing) return; const {x,y}=getXY(e); activeLayer.ctx.lineWidth=brushSize.value; activeLayer.ctx.strokeStyle=colorPicker.value; activeLayer.ctx.lineTo(x,y); activeLayer.ctx.stroke();}
+function endDraw(e){e.preventDefault(); drawing=false;}
+
 container.addEventListener("mousedown",startDraw);
 container.addEventListener("mousemove",draw);
 container.addEventListener("mouseup",endDraw);
@@ -194,51 +110,31 @@ container.addEventListener("touchstart",startDraw,{passive:false});
 container.addEventListener("touchmove",draw,{passive:false});
 container.addEventListener("touchend",endDraw);
 
-// --- Background ---
-function updateBG(){container.style.background=bgTransparent?"transparent":bgColor.value;}
-bgColor.addEventListener("input",()=>{bgTransparent=false;updateBG();});
+// --- BG ---
+function updateBG(){container.style.background=bgTransparent?"transparent":bgColorInput.value;}
+bgColorInput.addEventListener("input",()=>{bgTransparent=false;updateBG();});
 document.getElementById("toggleTransparency").addEventListener("click",()=>{
-  bgTransparent=!bgTransparent;
-  updateBG();
+  bgTransparent=!bgTransparent; updateBG();
 });
 
 // --- Undo/Redo ---
 document.addEventListener("keydown",e=>{
   if(e.ctrlKey && e.key.toLowerCase()==="z"){if(e.shiftKey) redo(); else undo();}
 });
-function saveState(){
-  const snapshot = layers.map(l=>l.canvas.toDataURL());
-  undoStack.push(snapshot);
-  redoStack=[];
-}
-function restoreState(snapshot){
-  snapshot.forEach((data,i)=>{
-    const img = new Image();
-    img.onload=()=>{layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height);layers[i].ctx.drawImage(img,0,0);};
-    img.src=data;
-  });
-}
-function undo(){
-  if(undoStack.length===0) return;
-  redoStack.push(layers.map(l=>l.canvas.toDataURL()));
-  restoreState(undoStack.pop());
-}
-function redo(){
-  if(redoStack.length===0) return;
-  undoStack.push(layers.map(l=>l.canvas.toDataURL()));
-  restoreState(redoStack.pop());
-}
+function saveState(){undoStack.push(layers.map(l=>l.canvas.toDataURL())); redoStack=[];}
+function restoreState(snapshot){snapshot.forEach((data,i)=>{const img=new Image(); img.onload=()=>{layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height);layers[i].ctx.drawImage(img,0,0);}; img.src=data;});}
+function undo(){if(undoStack.length===0) return; redoStack.push(layers.map(l=>l.canvas.toDataURL())); restoreState(undoStack.pop());}
+function redo(){if(redoStack.length===0) return; undoStack.push(layers.map(l=>l.canvas.toDataURL())); restoreState(redoStack.pop());}
 
-// --- Exports ---
+// --- Merge & Export ---
 function mergeLayers(){
-  const c=document.createElement("canvas");
-  c.width=container.clientWidth;
-  c.height=container.clientHeight;
+  const c=document.createElement("canvas"); c.width=container.clientWidth; c.height=container.clientHeight;
   const ctx=c.getContext("2d");
-  if(!bgTransparent){ctx.fillStyle=bgColor.value;ctx.fillRect(0,0,c.width,c.height);}
+  if(!bgTransparent){ctx.fillStyle=bgColorInput.value;ctx.fillRect(0,0,c.width,c.height);}
   layers.forEach(l=>ctx.drawImage(l.canvas,0,0));
   return c;
 }
+
 document.getElementById("exportPNG").onclick=()=>{const m=mergeLayers();const a=document.createElement("a");a.href=m.toDataURL("image/png");a.download="drawing.png";a.click();};
 document.getElementById("exportJPEG").onclick=()=>{const m=mergeLayers();const a=document.createElement("a");a.href=m.toDataURL("image/jpeg");a.download="drawing.jpg";a.click();};
 document.getElementById("exportPSD").onclick=()=>{
@@ -246,11 +142,7 @@ document.getElementById("exportPSD").onclick=()=>{
   const buf=agPsd.writePsd(psd);
   const blob=new Blob([buf],{type:"application/octet-stream"});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;
-  a.download="drawing.psd";
-  a.click();
-  URL.revokeObjectURL(url);
+  const a=document.createElement("a"); a.href=url; a.download="drawing.psd"; a.click(); URL.revokeObjectURL(url);
 };
 
 // --- Buttons ---
@@ -260,7 +152,7 @@ document.getElementById("delLayer").onclick=deleteLayer;
 // --- Init ---
 createLayer();
 updateBG();
-resizeCanvas();
+window.addEventListener("resize",()=>{layers.forEach(l=>{l.canvas.width=container.clientWidth;l.canvas.height=container.clientHeight;});});
 </script>
 
 </body>
