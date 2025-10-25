@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Layered Drawing App</title>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    background: #2b2b2b;
+    color: white;
+    font-family: sans-serif;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #sidebar {
+    width: 220px;
+    background: #1f1f1f;
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    gap: 12px;
+    border-right: 2px solid #333;
+  }
+  #brushPanel, #canvasPanel {
+    background: #292929;
+    border-radius: 10px;
+    padding: 10px;
+  }
+  h3 { margin: 0 0 5px 0; }
+  input[type="color"], input[type="range"] {
+    width: 100%;
+  }
+  #layers {
+    flex: 1;
+    overflow-y: auto;
+    background: #222;
+    padding: 10px;
+    border-radius: 10px;
+  }
+  #main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #canvasContainer {
+    position: relative;
+    background: white;
+    border: 2px solid #444;
+  }
+  canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+  button {
+    background: #444;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  button:hover { background: #666; }
+  .layerItem {
+    background: #333;
+    padding: 5px;
+    margin-bottom: 5px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .layerItem.active {
+    background: #555;
+  }
+</style>
+</head>
+<body>
+  <div id="sidebar">
+    <div id="brushPanel">
+      <h3>🖌️ Brush</h3>
+      <label>Color</label>
+      <input type="color" id="colorPicker" value="#000000" />
+      <label>Size</label>
+      <input type="range" id="brushSize" min="1" max="50" value="5" />
+    </div>
+
+    <div id="canvasPanel">
+      <h3>🧾 Canvas</h3>
+      <label>Background</label>
+      <input type="color" id="bgColorPicker" value="#ffffff" />
+      <button id="toggleTransparency">Make Transparent</button>
+      <hr>
+      <button id="newLayerBtn">➕ New Layer</button>
+      <button id="deleteLayerBtn">🗑️ Delete Layer</button>
+      <div id="layers"></div>
+    </div>
+
+    <div>
+      <button id="exportPngBtn">💾 Export PNG</button>
+      <button id="exportJpegBtn">💾 Export JPEG</button>
+      <button id="exportPsdBtn">💾 Export PSD</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="canvasContainer" style="width:800px;height:600px;">
+    </div>
+  </div>
+
+<script>
+// --- Layered Drawing App ---
+const canvasContainer = document.getElementById("canvasContainer");
+const layersDiv = document.getElementById("layers");
+const brushSizeInput = document.getElementById("brushSize");
+const colorPicker = document.getElementById("colorPicker");
+const bgColorPicker = document.getElementById("bgColorPicker");
+const toggleTransparencyBtn = document.getElementById("toggleTransparency");
+
+let layers = [];
+let activeLayer = null;
+let drawing = false;
+let undoStack = [];
+let redoStack = [];
+let bgTransparent = false;
+
+// Initialize
+createLayer();
+setActiveLayer(layers[0]);
+updateLayerList();
+setBackgroundColor(bgColorPicker.value);
+
+// Undo/Redo
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey && e.key.toLowerCase() === "z") {
+    if (e.shiftKey) redo();
+    else undo();
+  }
+});
+
+function createLayer() {
+  const c = document.createElement("canvas");
+  c.width = 800;
+  c.height = 600;
+  const ctx = c.getContext("2d");
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  canvasContainer.appendChild(c);
+  layers.push({ canvas: c, ctx });
+  setActiveLayer(layers[layers.length - 1]);
+  updateLayerList();
+}
+
+function deleteLayer() {
+  if (!activeLayer || layers.length <= 1) return;
+  canvasContainer.removeChild(activeLayer.canvas);
+  layers = layers.filter(l => l !== activeLayer);
+  setActiveLayer(layers[layers.length - 1]);
+  updateLayerList();
+}
+
+function setActiveLayer(layer) {
+  activeLayer = layer;
+  updateLayerList();
+}
+
+function updateLayerList() {
+  layersDiv.innerHTML = "";
+  layers.forEach((l, i) => {
+    const div = document.createElement("div");
+    div.textContent = "Layer " + (i + 1);
+    div.className = "layerItem" + (l === activeLayer ? " active" : "");
+    div.onclick = () => setActiveLayer(l);
+    layersDiv.appendChild(div);
+  });
+}
+
+// Drawing
+canvasContainer.addEventListener("mousedown", e => {
+  drawing = true;
+  const rect = canvasContainer.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  activeLayer.ctx.beginPath();
+  activeLayer.ctx.moveTo(x, y);
+  saveState();
+});
+canvasContainer.addEventListener("mousemove", e => {
+  if (!drawing) return;
+  const rect = canvasContainer.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  activeLayer.ctx.lineWidth = brushSizeInput.value;
+  activeLayer.ctx.strokeStyle = colorPicker.value;
+  activeLayer.ctx.lineTo(x, y);
+  activeLayer.ctx.stroke();
+});
+window.addEventListener("mouseup", () => (drawing = false));
+
+// Background Settings
+function setBackgroundColor(color) {
+  canvasContainer.style.background = bgTransparent
+    ? "transparent"
+    : color;
+}
+bgColorPicker.addEventListener("input", () => {
+  bgTransparent = false;
+  setBackgroundColor(bgColorPicker.value);
+});
+toggleTransparencyBtn.addEventListener("click", () => {
+  bgTransparent = !bgTransparent;
+  setBackgroundColor(bgColorPicker.value);
+  toggleTransparencyBtn.textContent = bgTransparent
+    ? "Make Opaque"
+    : "Make Transparent";
+});
+
+// Undo/Redo
+function saveState() {
+  const snapshot = layers.map(l => l.canvas.toDataURL());
+  undoStack.push(snapshot);
+  redoStack = [];
+}
+function undo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(layers.map(l => l.canvas.toDataURL()));
+  const snapshot = undoStack.pop();
+  restoreState(snapshot);
+}
+function redo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(layers.map(l => l.canvas.toDataURL()));
+  const snapshot = redoStack.pop();
+  restoreState(snapshot);
+}
+function restoreState(snapshot) {
+  snapshot.forEach((data, i) => {
+    const img = new Image();
+    img.onload = () => {
+      layers[i].ctx.clearRect(0, 0, 800, 600);
+      layers[i].ctx.drawImage(img, 0, 0);
+    };
+    img.src = data;
+  });
+}
+
+// Export
+document.getElementById("exportPngBtn").onclick = () => exportImage("image/png");
+document.getElementById("exportJpegBtn").onclick = () => exportImage("image/jpeg");
+document.getElementById("exportPsdBtn").onclick = exportPSD;
+
+function exportImage(type) {
+  const merged = document.createElement("canvas");
+  merged.width = 800;
+  merged.height = 600;
+  const mctx = merged.getContext("2d");
+  if (!bgTransparent) {
+    mctx.fillStyle = bgColorPicker.value;
+    mctx.fillRect(0, 0, merged.width, merged.height);
+  }
+  layers.forEach(l => mctx.drawImage(l.canvas, 0, 0));
+  const link = document.createElement("a");
+  link.download = "drawing." + (type === "image/png" ? "png" : "jpeg");
+  link.href = merged.toDataURL(type);
+  link.click();
+}
+
+// Local PSD Export (offline-safe)
+async function exportPSD() {
+  const { writePsdBuffer } = await loadAgPsd();
+  const agPsd = await loadAgPsd();
+  const psd = {
+    width: 800,
+    height: 600,
+    children: layers.map((l, i) => ({
+      name: "Layer " + (i + 1),
+      canvas: l.canvas
+    }))
+  };
+  const buffer = agPsd.writePsdBuffer(psd);
+  const blob = new Blob([buffer], { type: "application/octet-stream" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "drawing.psd";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Embedded ag-psd (no CORS needed)
+async function loadAgPsd() {
+  if (window.agPsd) return window.agPsd;
+  const blob = new Blob([`import * as agPsd from 'https://cdn.jsdelivr.net/npm/ag-psd@28.4.1/dist/ags-psd.min.js'; export default agPsd;`], {type: 'text/javascript'});
+  window.agPsd = await import(URL.createObjectURL(blob));
+  return window.agPsd;
+}
+
+// UI buttons
+document.getElementById("newLayerBtn").onclick = createLayer;
+document.getElementById("deleteLayerBtn").onclick = deleteLayer;
+</script>
+</body>
+</html>
