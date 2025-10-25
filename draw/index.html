@@ -101,7 +101,7 @@ button:hover { background:#666; }
   <div id="canvasContainer" style="width:800px;height:600px;"></div>
 </div>
 
-<!-- Load ag-psd from CDN and wait until ready -->
+<!-- Load ag-psd from CDN -->
 <script>
 const script = document.createElement("script");
 script.src = "https://cdn.jsdelivr.net/npm/ag-psd@28.4.1/dist/ag-psd.umd.js";
@@ -251,22 +251,21 @@ document.getElementById("exportPngBtn").onclick=()=>{downloadCanvas(mergeAll(),"
 document.getElementById("exportJpegBtn").onclick=()=>{downloadCanvas(mergeAll(),"drawing.jpg","image/jpeg");}
 
 // --- PSD Export setup after ag-psd loads ---
-function setupPSDExport() {
+function setupPSDExport(){
   document.getElementById("exportPsdBtn").onclick = () => {
     const psd = {
       width: 800,
       height: 600,
-      children: layers.map((l, i) => {
+      children: layers.map((l,i)=>{
         const ctx = l.canvas.getContext("2d");
-        const imageData = ctx.getImageData(0, 0, l.canvas.width, l.canvas.height);
+        const imgData = ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
         return {
-          name: "Layer " + (i + 1),
-          canvas: undefined, // remove old canvas
-          pixels: imageData.data,
+          name: "Layer " + (i+1),
           width: l.canvas.width,
           height: l.canvas.height,
           top: 0,
-          left: 0
+          left: 0,
+          pixels: imgData.data
         };
       })
     };
