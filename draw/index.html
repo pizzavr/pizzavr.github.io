@@ -1,25 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Mobile-Friendly Layered Drawing App</title>
+<title>Responsive Mobile Drawing App</title>
 <style>
-body {
+body, html {
   margin:0;
-  display:flex;
-  flex-direction: column;
+  padding:0;
+  height:100%;
+  width:100%;
   font-family:sans-serif;
   background:#2b2b2b;
   color:white;
-  height:100vh;
+  display:flex;
+  flex-direction:column;
 }
 #topbar {
   display:flex;
+  flex-wrap:wrap;
   gap:6px;
   padding:5px;
   background:#1f1f1f;
-  flex-wrap: wrap;
 }
 #topbar button,input[type=color],input[type=range]{
   padding:5px;
@@ -46,7 +48,6 @@ body {
   flex:1;
   position:relative;
   background:white;
-  border:2px solid #444;
   display:flex;
   justify-content:center;
   align-items:center;
@@ -55,6 +56,7 @@ canvas {
   position:absolute;
   top:0;
   left:0;
+  touch-action: none; /* important for mobile touch */
 }
 .layerItem{
   background:#333;
@@ -87,15 +89,14 @@ canvas {
     <h3>Layers</h3>
     <div id="layers"></div>
   </div>
-  <div id="canvasContainer" style="width:800px;height:600px;"></div>
+  <div id="canvasContainer"></div>
 </div>
 
 <script type="module">
-// --- Import PSD library (static, works on GitHub Pages) ---
-import * as agPsd from './libs/ags-psd.min.js'; // make sure you put ags-psd.min.js in libs/
+// --- Static PSD import for GitHub Pages ---
+import * as agPsd from './libs/ags-psd.min.js'; // make sure you have this local
 
-// --- Variables ---
-const canvasContainer = document.getElementById("canvasContainer");
+const container = document.getElementById("canvasContainer");
 const layersDiv = document.getElementById("layers");
 const colorPicker = document.getElementById("colorPicker");
 const brushSize = document.getElementById("brushSize");
@@ -107,24 +108,43 @@ let drawing = false;
 let bgTransparent = false;
 let undoStack = [];
 let redoStack = [];
+let canvasWidth = 800;
+let canvasHeight = 600;
 
-// --- Canvas helpers ---
+// --- Responsive canvas ---
+function resizeCanvas(){
+  const rect = container.getBoundingClientRect();
+  canvasWidth = rect.width;
+  canvasHeight = rect.height;
+  layers.forEach(l=>{
+    const img = l.canvas.toDataURL();
+    l.canvas.width = canvasWidth;
+    l.canvas.height = canvasHeight;
+    const ctx = l.ctx;
+    const imgEl = new Image();
+    imgEl.onload = ()=>ctx.drawImage(imgEl,0,0,canvasWidth,canvasHeight);
+    imgEl.src = img;
+  });
+}
+window.addEventListener("resize",resizeCanvas);
+
+// --- Layers ---
 function createLayer(name="Layer "+(layers.length+1)){
   const c = document.createElement("canvas");
-  c.width = canvasContainer.clientWidth;
-  c.height = canvasContainer.clientHeight;
+  c.width = container.clientWidth;
+  c.height = container.clientHeight;
   const ctx = c.getContext("2d");
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  canvasContainer.appendChild(c);
-  const layer = {canvas:c, ctx, name};
+  container.appendChild(c);
+  const layer={canvas:c,ctx,name};
   layers.push(layer);
   setActiveLayer(layer);
   updateLayerList();
 }
 function deleteLayer(){
   if(!activeLayer || layers.length<=1) return;
-  canvasContainer.removeChild(activeLayer.canvas);
+  container.removeChild(activeLayer.canvas);
   layers = layers.filter(l=>l!==activeLayer);
   setActiveLayer(layers[layers.length-1]);
   updateLayerList();
@@ -146,11 +166,10 @@ function updateLayerList(){
 
 // --- Drawing ---
 function getXY(e){
-  const rect=canvasContainer.getBoundingClientRect();
-  if(e.touches) return {x:e.touches[0].clientX-rect.left,y:e.touches[0].clientY-rect.top};
-  return {x:e.offsetX,y:e.offsetY};
+  const rect = container.getBoundingClientRect();
+  if(e.touches) return {x:e.touches[0].clientX-rect.left, y:e.touches[0].clientY-rect.top};
+  return {x:e.offsetX, y:e.offsetY};
 }
-
 function startDraw(e){
   if(!activeLayer) return;
   drawing=true;
@@ -168,16 +187,15 @@ function draw(e){
   activeLayer.ctx.stroke();
 }
 function endDraw(){drawing=false;}
-
-canvasContainer.addEventListener("mousedown",startDraw);
-canvasContainer.addEventListener("mousemove",draw);
-canvasContainer.addEventListener("mouseup",endDraw);
-canvasContainer.addEventListener("touchstart",startDraw,{passive:false});
-canvasContainer.addEventListener("touchmove",draw,{passive:false});
-canvasContainer.addEventListener("touchend",endDraw);
+container.addEventListener("mousedown",startDraw);
+container.addEventListener("mousemove",draw);
+container.addEventListener("mouseup",endDraw);
+container.addEventListener("touchstart",startDraw,{passive:false});
+container.addEventListener("touchmove",draw,{passive:false});
+container.addEventListener("touchend",endDraw);
 
 // --- Background ---
-function updateBG(){canvasContainer.style.background=bgTransparent?"transparent":bgColor.value;}
+function updateBG(){container.style.background=bgTransparent?"transparent":bgColor.value;}
 bgColor.addEventListener("input",()=>{bgTransparent=false;updateBG();});
 document.getElementById("toggleTransparency").addEventListener("click",()=>{
   bgTransparent=!bgTransparent;
@@ -189,13 +207,13 @@ document.addEventListener("keydown",e=>{
   if(e.ctrlKey && e.key.toLowerCase()==="z"){if(e.shiftKey) redo(); else undo();}
 });
 function saveState(){
-  const snapshot=layers.map(l=>l.canvas.toDataURL());
+  const snapshot = layers.map(l=>l.canvas.toDataURL());
   undoStack.push(snapshot);
   redoStack=[];
 }
 function restoreState(snapshot){
   snapshot.forEach((data,i)=>{
-    const img=new Image();
+    const img = new Image();
     img.onload=()=>{layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height);layers[i].ctx.drawImage(img,0,0);};
     img.src=data;
   });
@@ -214,18 +232,17 @@ function redo(){
 // --- Exports ---
 function mergeLayers(){
   const c=document.createElement("canvas");
-  c.width=canvasContainer.clientWidth;
-  c.height=canvasContainer.clientHeight;
+  c.width=container.clientWidth;
+  c.height=container.clientHeight;
   const ctx=c.getContext("2d");
   if(!bgTransparent){ctx.fillStyle=bgColor.value;ctx.fillRect(0,0,c.width,c.height);}
   layers.forEach(l=>ctx.drawImage(l.canvas,0,0));
   return c;
 }
-
 document.getElementById("exportPNG").onclick=()=>{const m=mergeLayers();const a=document.createElement("a");a.href=m.toDataURL("image/png");a.download="drawing.png";a.click();};
 document.getElementById("exportJPEG").onclick=()=>{const m=mergeLayers();const a=document.createElement("a");a.href=m.toDataURL("image/jpeg");a.download="drawing.jpg";a.click();};
 document.getElementById("exportPSD").onclick=()=>{
-  const psd={width:canvasContainer.clientWidth,height:canvasContainer.clientHeight,children:layers.map((l,i)=>({name:l.name,canvas:l.canvas}))};
+  const psd={width:container.clientWidth,height:container.clientHeight,children:layers.map((l,i)=>({name:l.name,canvas:l.canvas}))};
   const buf=agPsd.writePsd(psd);
   const blob=new Blob([buf],{type:"application/octet-stream"});
   const url=URL.createObjectURL(blob);
@@ -243,6 +260,8 @@ document.getElementById("delLayer").onclick=deleteLayer;
 // --- Init ---
 createLayer();
 updateBG();
+resizeCanvas();
 </script>
+
 </body>
 </html>
