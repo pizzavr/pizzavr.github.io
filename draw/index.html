@@ -2,80 +2,155 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Responsive Mobile Drawing App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Layered Drawing App</title>
 <style>
-body, html {margin:0;padding:0;width:100%;height:100%;background:#2b2b2b;color:white;font-family:sans-serif;}
-#topbar {display:flex;flex-wrap:wrap;gap:6px;padding:5px;background:#1f1f1f;}
-#topbar button,input[type=color],input[type=range]{padding:5px;border:none;border-radius:5px;cursor:pointer;}
-#main {flex:1;display:flex;overflow:hidden;height:calc(100% - 60px);}
-#sidebar {width:200px;background:#1f1f1f;flex-shrink:0;padding:10px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;}
-#canvasContainer {flex:1;position:relative;background:white;display:flex;justify-content:center;align-items:center;}
-canvas {position:absolute;top:0;left:0;touch-action:none;}
-.layerItem{background:#333;padding:5px;margin-bottom:3px;border-radius:4px;cursor:pointer;}
-.layerItem.active{background:#555;}
+body {
+  margin:0;
+  font-family:sans-serif;
+  display:flex;
+  height:100vh;
+  background:#2b2b2b;
+  color:white;
+}
+#sidebar {
+  width:220px;
+  background:#1f1f1f;
+  display:flex;
+  flex-direction:column;
+  padding:10px;
+  gap:12px;
+  border-right:2px solid #333;
+}
+#brushPanel,#canvasPanel {
+  background:#292929;
+  border-radius:10px;
+  padding:10px;
+}
+h3 { margin:0 0 5px 0; }
+input[type="color"], input[type="range"] { width:100%; }
+#layers {
+  flex:1;
+  overflow-y:auto;
+  background:#222;
+  padding:10px;
+  border-radius:10px;
+}
+#main {
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+#canvasContainer {
+  position:relative;
+  background:white;
+  border:2px solid #444;
+}
+canvas { position:absolute; left:0; top:0; }
+button {
+  background:#444;
+  color:white;
+  border:none;
+  padding:6px 10px;
+  border-radius:6px;
+  cursor:pointer;
+  transition:background 0.2s;
+}
+button:hover { background:#666; }
+.layerItem {
+  background:#333;
+  padding:5px;
+  margin-bottom:5px;
+  border-radius:5px;
+  cursor:pointer;
+}
+.layerItem.active { background:#555; }
 </style>
 </head>
 <body>
 
-<div id="topbar">
-  <label>Brush Color:<input type="color" id="colorPicker" value="#000000"></label>
-  <label>Brush Size:<input type="range" id="brushSize" min="1" max="50" value="5"></label>
-  <label>BG Color:<input type="color" id="bgColor" value="#ffffff"></label>
-  <button id="toggleTransparency">Transparent BG</button>
-  <button id="addLayer">Add Layer</button>
-  <button id="delLayer">Delete Layer</button>
-  <button id="exportPNG">Export PNG</button>
-  <button id="exportJPEG">Export JPEG</button>
-  <button id="exportPSD">Export PSD</button>
+<div id="sidebar">
+  <div id="brushPanel">
+    <h3>🖌️ Brush</h3>
+    <label>Color</label>
+    <input type="color" id="colorPicker" value="#000000">
+    <label>Size</label>
+    <input type="range" id="brushSize" min="1" max="50" value="5">
+  </div>
+
+  <div id="canvasPanel">
+    <h3>🧾 Canvas</h3>
+    <label>Background</label>
+    <input type="color" id="bgColorPicker" value="#ffffff">
+    <button id="toggleTransparency">Make Transparent</button>
+    <hr>
+    <button id="newLayerBtn">➕ New Layer</button>
+    <button id="deleteLayerBtn">🗑️ Delete Layer</button>
+    <div id="layers"></div>
+  </div>
+
+  <div>
+    <button id="exportPngBtn">💾 Export PNG</button>
+    <button id="exportJpegBtn">💾 Export JPEG</button>
+    <button id="exportPsdBtn">💾 Export PSD</button>
+  </div>
 </div>
 
 <div id="main">
-  <div id="sidebar">
-    <h3>Layers</h3>
-    <div id="layers"></div>
-  </div>
-  <div id="canvasContainer"></div>
+  <div id="canvasContainer" style="width:800px;height:600px;"></div>
 </div>
 
+<!-- Static ag-psd import -->
 <script type="module">
-import * as agPsd from './libs/ags-psd.min.js'; // local library
+  import * as agPsd from './libs/ags-psd.min.js';
+  window.agPsd = agPsd;
+</script>
 
-const container=document.getElementById("canvasContainer");
-const layersDiv=document.getElementById("layers");
-const colorPicker=document.getElementById("colorPicker");
-const brushSize=document.getElementById("brushSize");
-const bgColorInput=document.getElementById("bgColor");
+<script>
+const canvasContainer = document.getElementById("canvasContainer");
+const layersDiv = document.getElementById("layers");
+const brushSizeInput = document.getElementById("brushSize");
+const colorPicker = document.getElementById("colorPicker");
+const bgColorPicker = document.getElementById("bgColorPicker");
+const toggleTransparencyBtn = document.getElementById("toggleTransparency");
 
-let layers=[],activeLayer=null,drawing=false,bgTransparent=false;
-let undoStack=[],redoStack=[];
+let layers = [];
+let activeLayer = null;
+let drawing = false;
+let undoStack = [];
+let redoStack = [];
+let bgTransparent = false;
 
-function createLayer(name="Layer "+(layers.length+1)){
-  const c=document.createElement("canvas");
-  c.width=container.clientWidth;
-  c.height=container.clientHeight;
-  c.style.zIndex=layers.length;
-  const ctx=c.getContext("2d");
-  ctx.lineCap="round"; ctx.lineJoin="round";
-  container.appendChild(c);
-  const layer={canvas:c,ctx,name};
-  layers.push(layer);
-  setActiveLayer(layer);
+// Create initial layer
+createLayer();
+setActiveLayer(layers[0]);
+setBackgroundColor(bgColorPicker.value);
+
+// --- Layer functions ---
+function createLayer() {
+  const c = document.createElement("canvas");
+  c.width = 800;
+  c.height = 600;
+  const ctx = c.getContext("2d");
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  canvasContainer.appendChild(c);
+  layers.push({ canvas:c, ctx });
+  setActiveLayer(layers[layers.length-1]);
   updateLayerList();
 }
 
-function deleteLayer(){
-  if(!activeLayer||layers.length<=1) return;
-  container.removeChild(activeLayer.canvas);
-  layers=layers.filter(l=>l!==activeLayer);
+function deleteLayer() {
+  if (!activeLayer || layers.length<=1) return;
+  canvasContainer.removeChild(activeLayer.canvas);
+  layers = layers.filter(l=>l!==activeLayer);
   setActiveLayer(layers[layers.length-1]);
   updateLayerList();
 }
 
 function setActiveLayer(layer){
   activeLayer=layer;
-  layers.forEach((l,i)=>l.canvas.style.zIndex=i);
-  if(layer) layer.canvas.style.zIndex=layers.length;
   updateLayerList();
 }
 
@@ -83,7 +158,7 @@ function updateLayerList(){
   layersDiv.innerHTML="";
   layers.forEach((l,i)=>{
     const div=document.createElement("div");
-    div.textContent=l.name;
+    div.textContent="Layer "+(i+1);
     div.className="layerItem"+(l===activeLayer?" active":"");
     div.onclick=()=>setActiveLayer(l);
     layersDiv.appendChild(div);
@@ -91,69 +166,104 @@ function updateLayerList(){
 }
 
 // --- Drawing ---
-function getXY(e){
-  const rect=activeLayer.canvas.getBoundingClientRect();
-  let x,y;
-  if(e.touches){x=e.touches[0].clientX-rect.left; y=e.touches[0].clientY-rect.top;}
-  else {x=e.clientX-rect.left; y=e.clientY-rect.top;}
-  return {x,y};
+canvasContainer.addEventListener("mousedown", e=>{
+  drawing=true;
+  const rect=canvasContainer.getBoundingClientRect();
+  const x=e.clientX-rect.left;
+  const y=e.clientY-rect.top;
+  activeLayer.ctx.beginPath();
+  activeLayer.ctx.moveTo(x,y);
+  saveState();
+});
+canvasContainer.addEventListener("mousemove", e=>{
+  if(!drawing) return;
+  const rect=canvasContainer.getBoundingClientRect();
+  const x=e.clientX-rect.left;
+  const y=e.clientY-rect.top;
+  activeLayer.ctx.lineWidth=brushSizeInput.value;
+  activeLayer.ctx.strokeStyle=colorPicker.value;
+  activeLayer.ctx.lineTo(x,y);
+  activeLayer.ctx.stroke();
+});
+window.addEventListener("mouseup", ()=>drawing=false);
+
+// --- Canvas Settings ---
+function setBackgroundColor(color){
+  canvasContainer.style.background=bgTransparent?"transparent":color;
 }
-
-function startDraw(e){e.preventDefault(); if(!activeLayer) return; drawing=true; const {x,y}=getXY(e); activeLayer.ctx.beginPath(); activeLayer.ctx.moveTo(x,y); saveState();}
-function draw(e){e.preventDefault(); if(!drawing) return; const {x,y}=getXY(e); activeLayer.ctx.lineWidth=brushSize.value; activeLayer.ctx.strokeStyle=colorPicker.value; activeLayer.ctx.lineTo(x,y); activeLayer.ctx.stroke();}
-function endDraw(e){e.preventDefault(); drawing=false;}
-
-container.addEventListener("mousedown",startDraw);
-container.addEventListener("mousemove",draw);
-container.addEventListener("mouseup",endDraw);
-container.addEventListener("touchstart",startDraw,{passive:false});
-container.addEventListener("touchmove",draw,{passive:false});
-container.addEventListener("touchend",endDraw);
-
-// --- BG ---
-function updateBG(){container.style.background=bgTransparent?"transparent":bgColorInput.value;}
-bgColorInput.addEventListener("input",()=>{bgTransparent=false;updateBG();});
-document.getElementById("toggleTransparency").addEventListener("click",()=>{
-  bgTransparent=!bgTransparent; updateBG();
+bgColorPicker.addEventListener("input", ()=>{
+  bgTransparent=false;
+  setBackgroundColor(bgColorPicker.value);
+});
+toggleTransparencyBtn.addEventListener("click", ()=>{
+  bgTransparent=!bgTransparent;
+  setBackgroundColor(bgColorPicker.value);
+  toggleTransparencyBtn.textContent=bgTransparent?"Make Opaque":"Make Transparent";
 });
 
 // --- Undo/Redo ---
-document.addEventListener("keydown",e=>{
-  if(e.ctrlKey && e.key.toLowerCase()==="z"){if(e.shiftKey) redo(); else undo();}
+document.addEventListener("keydown", e=>{
+  if(e.ctrlKey && e.key.toLowerCase()==="z"){
+    if(e.shiftKey) redo();
+    else undo();
+  }
 });
-function saveState(){undoStack.push(layers.map(l=>l.canvas.toDataURL())); redoStack=[];}
-function restoreState(snapshot){snapshot.forEach((data,i)=>{const img=new Image(); img.onload=()=>{layers[i].ctx.clearRect(0,0,layers[i].canvas.width,layers[i].canvas.height);layers[i].ctx.drawImage(img,0,0);}; img.src=data;});}
-function undo(){if(undoStack.length===0) return; redoStack.push(layers.map(l=>l.canvas.toDataURL())); restoreState(undoStack.pop());}
-function redo(){if(redoStack.length===0) return; undoStack.push(layers.map(l=>l.canvas.toDataURL())); restoreState(redoStack.pop());}
-
-// --- Merge & Export ---
-function mergeLayers(){
-  const c=document.createElement("canvas"); c.width=container.clientWidth; c.height=container.clientHeight;
-  const ctx=c.getContext("2d");
-  if(!bgTransparent){ctx.fillStyle=bgColorInput.value;ctx.fillRect(0,0,c.width,c.height);}
-  layers.forEach(l=>ctx.drawImage(l.canvas,0,0));
-  return c;
+function saveState(){
+  const snapshot=layers.map(l=>l.canvas.toDataURL());
+  undoStack.push(snapshot);
+  redoStack=[];
+}
+function undo(){
+  if(undoStack.length===0) return;
+  redoStack.push(layers.map(l=>l.canvas.toDataURL()));
+  restoreState(undoStack.pop());
+}
+function redo(){
+  if(redoStack.length===0) return;
+  undoStack.push(layers.map(l=>l.canvas.toDataURL()));
+  restoreState(redoStack.pop());
+}
+function restoreState(snapshot){
+  snapshot.forEach((data,i)=>{
+    const img=new Image();
+    img.onload=()=>{layers[i].ctx.clearRect(0,0,800,600);layers[i].ctx.drawImage(img,0,0);}
+    img.src=data;
+  });
 }
 
-document.getElementById("exportPNG").onclick=()=>{const m=mergeLayers();const a=document.createElement("a");a.href=m.toDataURL("image/png");a.download="drawing.png";a.click();};
-document.getElementById("exportJPEG").onclick=()=>{const m=mergeLayers();const a=document.createElement("a");a.href=m.toDataURL("image/jpeg");a.download="drawing.jpg";a.click();};
-document.getElementById("exportPSD").onclick=()=>{
-  const psd={width:container.clientWidth,height:container.clientHeight,children:layers.map((l,i)=>({name:l.name,canvas:l.canvas}))};
-  const buf=agPsd.writePsd(psd);
-  const blob=new Blob([buf],{type:"application/octet-stream"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a"); a.href=url; a.download="drawing.psd"; a.click(); URL.revokeObjectURL(url);
-};
+// --- Export functions ---
+function mergeAll(){
+  const merged=document.createElement("canvas");
+  merged.width=800; merged.height=600;
+  const mctx=merged.getContext("2d");
+  if(!bgTransparent){ mctx.fillStyle=bgColorPicker.value; mctx.fillRect(0,0,merged.width,merged.height); }
+  layers.forEach(l=>mctx.drawImage(l.canvas,0,0));
+  return merged;
+}
 
-// --- Buttons ---
-document.getElementById("addLayer").onclick=createLayer;
-document.getElementById("delLayer").onclick=deleteLayer;
+document.getElementById("exportPngBtn").onclick=()=>{const m=mergeAll(); downloadCanvas(m,"drawing.png");}
+document.getElementById("exportJpegBtn").onclick=()=>{const m=mergeAll(); downloadCanvas(m,"drawing.jpg","image/jpeg");}
+function downloadCanvas(c,name,type="image/png"){const a=document.createElement("a");a.href=c.toDataURL(type);a.download=name;a.click();}
 
-// --- Init ---
-createLayer();
-updateBG();
-window.addEventListener("resize",()=>{layers.forEach(l=>{l.canvas.width=container.clientWidth;l.canvas.height=container.clientHeight;});});
+// --- PSD Export ---
+document.getElementById("exportPsdBtn").onclick=async()=>{
+  const psd = {
+    width:800,
+    height:600,
+    children: layers.map((l,i)=>({name:"Layer "+(i+1), canvas:l.canvas}))
+  };
+  const buffer = window.agPsd.writePsd(psd);
+  const blob = new Blob([buffer],{type:"application/octet-stream"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="drawing.psd";
+  a.click();
+}
+
+// --- UI buttons ---
+document.getElementById("newLayerBtn").onclick=createLayer;
+document.getElementById("deleteLayerBtn").onclick=deleteLayer;
+
 </script>
-
 </body>
 </html>
