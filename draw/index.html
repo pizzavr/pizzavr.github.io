@@ -3,68 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Layered Drawing App</title>
+<title>Offline Layered Drawing App</title>
 <style>
-body {
-  margin:0;
-  font-family:sans-serif;
-  display:flex;
-  height:100vh;
-  background:#2b2b2b;
-  color:white;
-}
-#sidebar {
-  width:220px;
-  background:#1f1f1f;
-  display:flex;
-  flex-direction:column;
-  padding:10px;
-  gap:12px;
-  border-right:2px solid #333;
-}
-#brushPanel,#canvasPanel {
-  background:#292929;
-  border-radius:10px;
-  padding:10px;
-}
+body { margin:0; font-family:sans-serif; display:flex; height:100vh; background:#2b2b2b; color:white; }
+#sidebar { width:220px; background:#1f1f1f; display:flex; flex-direction:column; padding:10px; gap:12px; border-right:2px solid #333; }
+#brushPanel,#canvasPanel { background:#292929; border-radius:10px; padding:10px; }
 h3 { margin:0 0 5px 0; }
 input[type="color"], input[type="range"] { width:100%; }
-#layers {
-  flex:1;
-  overflow-y:auto;
-  background:#222;
-  padding:10px;
-  border-radius:10px;
-}
-#main {
-  flex:1;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-#canvasContainer {
-  position:relative;
-  background:white;
-  border:2px solid #444;
-}
+#layers { flex:1; overflow-y:auto; background:#222; padding:10px; border-radius:10px; }
+#main { flex:1; display:flex; align-items:center; justify-content:center; }
+#canvasContainer { position:relative; background:white; border:2px solid #444; }
 canvas { position:absolute; left:0; top:0; }
-button {
-  background:#444;
-  color:white;
-  border:none;
-  padding:6px 10px;
-  border-radius:6px;
-  cursor:pointer;
-  transition:background 0.2s;
-}
+button { background:#444; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; transition:background 0.2s; }
 button:hover { background:#666; }
-.layerItem {
-  background:#333;
-  padding:5px;
-  margin-bottom:5px;
-  border-radius:5px;
-  cursor:pointer;
-}
+.layerItem { background:#333; padding:5px; margin-bottom:5px; border-radius:5px; cursor:pointer; }
 .layerItem.active { background:#555; }
 </style>
 </head>
@@ -93,7 +45,7 @@ button:hover { background:#666; }
   <div>
     <button id="exportPngBtn">💾 Export PNG</button>
     <button id="exportJpegBtn">💾 Export JPEG</button>
-    <button id="exportPsdBtn">💾 Export PSD</button>
+    <button id="exportSimPsdBtn">💾 Export “PSD” (ZIP)</button>
   </div>
 </div>
 
@@ -101,16 +53,8 @@ button:hover { background:#666; }
   <div id="canvasContainer" style="width:800px;height:600px;"></div>
 </div>
 
-<!-- Load ag-psd from CDN -->
-<script>
-const script = document.createElement("script");
-script.src = "https://cdn.jsdelivr.net/npm/ag-psd@28.4.1/dist/ag-psd.umd.js";
-script.onload = () => {
-  console.log("ag-psd loaded successfully");
-  setupPSDExport();
-};
-document.head.appendChild(script);
-</script>
+<!-- JSZip -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.11.0/jszip.min.js"></script>
 
 <script>
 // --- Canvas / Layer setup ---
@@ -235,7 +179,7 @@ function restoreState(snapshot){
   });
 }
 
-// --- Export functions ---
+// --- Export ---
 function mergeAll(){
   const merged=document.createElement("canvas");
   merged.width=800; merged.height=600;
@@ -250,41 +194,29 @@ function downloadCanvas(c,name,type="image/png"){const a=document.createElement(
 document.getElementById("exportPngBtn").onclick=()=>{downloadCanvas(mergeAll(),"drawing.png");}
 document.getElementById("exportJpegBtn").onclick=()=>{downloadCanvas(mergeAll(),"drawing.jpg","image/jpeg");}
 
-// --- PSD Export setup after ag-psd loads ---
-function setupPSDExport(){
-  document.getElementById("exportPsdBtn").onclick = () => {
-    const psd = {
-      width: 800,
-      height: 600,
-      children: layers.map((l,i)=>{
-        const ctx = l.canvas.getContext("2d");
-        const imgData = ctx.getImageData(0,0,l.canvas.width,l.canvas.height);
-        return {
-          name: "Layer " + (i+1),
-          width: l.canvas.width,
-          height: l.canvas.height,
-          top: 0,
-          left: 0,
-          pixels: imgData.data
-        };
-      })
-    };
-
-    const buffer = window.agPsd.writePsd(psd);
-    const blob = new Blob([buffer], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "drawing.psd";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-}
-
+// --- Simulated PSD (ZIP of PNG layers) ---
+document.getElementById("exportSimPsdBtn").onclick = async () => {
+  if(typeof JSZip === "undefined"){
+    alert("JSZip failed to load. Make sure the CDN script is included.");
+    return;
+  }
+  const zip = new JSZip();
+  layers.forEach((l,i)=>{
+    const dataURL = l.canvas.toDataURL("image/png");
+    const base64 = dataURL.split(",")[1];
+    zip.file("Layer_" + (i+1) + ".png", base64, {base64:true});
+  });
+  const content = await zip.generateAsync({type:"blob"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(content);
+  a.download="layers.zip";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+  
 // --- UI buttons ---
 document.getElementById("newLayerBtn").onclick=createLayer;
 document.getElementById("deleteLayerBtn").onclick=deleteLayer;
-
 </script>
 </body>
 </html>
