@@ -251,13 +251,26 @@ document.getElementById("exportPngBtn").onclick=()=>{downloadCanvas(mergeAll(),"
 document.getElementById("exportJpegBtn").onclick=()=>{downloadCanvas(mergeAll(),"drawing.jpg","image/jpeg");}
 
 // --- PSD Export setup after ag-psd loads ---
-function setupPSDExport(){
+function setupPSDExport() {
   document.getElementById("exportPsdBtn").onclick = () => {
     const psd = {
       width: 800,
       height: 600,
-      children: layers.map((l,i)=>({name: "Layer " + (i+1), canvas: l.canvas}))
+      children: layers.map((l, i) => {
+        const ctx = l.canvas.getContext("2d");
+        const imageData = ctx.getImageData(0, 0, l.canvas.width, l.canvas.height);
+        return {
+          name: "Layer " + (i + 1),
+          canvas: undefined, // remove old canvas
+          pixels: imageData.data,
+          width: l.canvas.width,
+          height: l.canvas.height,
+          top: 0,
+          left: 0
+        };
+      })
     };
+
     const buffer = window.agPsd.writePsd(psd);
     const blob = new Blob([buffer], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
