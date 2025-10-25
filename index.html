@@ -39,31 +39,40 @@ footer { margin-top: 40px; font-size: 0.85rem; color: #999; }
 </head>
 <body>
 <h1>⚙️ My Mini App Hub</h1>
-<div class="button-container" id="buttons"></div>
+<div class="button-container" id="buttons">Loading apps...</div>
 <footer>© 2025 YourName</footer>
 
 <script>
 // --- CONFIG ---
-const GITHUB_USER = "yourusername";       // replace with your GitHub username
-const GITHUB_REPO = "your-repo";          // replace with your repo name
-const BRANCH = "main";                     // usually main or master
+// Replace these with your actual GitHub info
+const GITHUB_USER = "YourActualUsername";
+const GITHUB_REPO = "YourRepoName";
+const BRANCH = "main"; // usually main
 
 async function loadApps() {
   const container = document.getElementById('buttons');
+  container.textContent = "Loading apps...";
   try {
-    // Fetch repo root contents using GitHub API
     const response = await fetch(`https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents?ref=${BRANCH}`);
     const items = await response.json();
 
-    // Filter for folders
-    const folders = items.filter(item => item.type === "dir");
+    if (!Array.isArray(items)) {
+      console.error("Failed to fetch repo contents:", items);
+      container.textContent = "Failed to load apps.";
+      return;
+    }
 
+    const folders = items.filter(item => item.type === "dir");
+    container.textContent = ""; // clear loading text
+
+    let anyApps = false;
     for (const folder of folders) {
-      // Check if folder has an index.html
-      const folderContents = await fetch(folder.url);
-      const contentsJson = await folderContents.json();
-      const hasIndex = contentsJson.some(f => f.name.toLowerCase() === "index.html");
+      // Check if folder has index.html
+      const folderContentsResponse = await fetch(folder.url);
+      const folderContents = await folderContentsResponse.json();
+      const hasIndex = folderContents.some(f => f.name.toLowerCase() === "index.html");
       if (hasIndex) {
+        anyApps = true;
         const btn = document.createElement('button');
         btn.className = 'app-btn';
         btn.textContent = folder.name.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
@@ -71,9 +80,13 @@ async function loadApps() {
         container.appendChild(btn);
       }
     }
+
+    if (!anyApps) {
+      container.textContent = "No apps found.";
+    }
   } catch (err) {
     console.error("Error loading apps:", err);
-    container.textContent = "Failed to load apps.";
+    container.textContent = "Error loading apps.";
   }
 }
 
